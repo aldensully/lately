@@ -1,7 +1,10 @@
-import { Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActionSheetIOS, Alert, Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View, Image } from 'react-native';
+import MaskedView from '@react-native-masked-view/masked-view';
+import * as ImagePicker from 'expo-image-picker';
+import * as Camera from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
-import { PageTextType, ScreenProps } from '../types';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ImageShape, PageImageType, PageTextType, ScreenProps } from '../types';
 import { Container, Text, useThemeColor } from '../Theme/Themed';
 import Header from '../Components/Header';
 import BackButton from '../Components/BackButton';
@@ -21,6 +24,7 @@ import AlignLeftIcon from '../../assets/icons/AlignLeftIcon';
 import AlignCenterIcon from '../../assets/icons/AlignCenterIcon';
 import AlignRightIcon from '../../assets/icons/AlignRightIcon';
 import KeyboardIcon from '../../assets/icons/KeyboardIcon';
+import { useCameraPermissions } from 'expo-image-picker';
 
 const DoneButton = () => {
   const colors = useThemeColor();
@@ -46,8 +50,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const { top, bottom } = useSafeAreaInsets();
   const [overlaysShown, setOverlaysShown] = useState(true);
   const [hasBackAction, setHasBackAction] = useState(false);
-  const [actions, setActions] = useState<any[]>([]);
   const [texts, setTexts] = useState<PageTextType[]>([]);
+  const [images, setImages] = useState<PageImageType[]>([]);
   const [keyboardFocused, setKeyboardFocused] = useState(false);
   const [openInput, setOpenInput] = useState(false);
   const [newText, setNewText] = useState('');
@@ -57,6 +61,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const [color, setColor] = useState('#000000');
   const [align, setAlign] = useState<'left' | 'center' | 'right'>('left');
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [camPermission, requestPermission] = useCameraPermissions();
+  const [mediaPermission] = ImagePicker.useMediaLibraryPermissions();
 
   useEffect(() => {
     Keyboard.addListener('keyboardWillShow', () => {
@@ -109,7 +115,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       font: font,
       align,
       x: width / 4,
-      y: height / 2,
+      y: height / 3.5,
       z: 3,
       rotate: 0,
       size: 18,
@@ -124,8 +130,75 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const handleInputFocus = () => {
   };
 
-  const handleImagePickerButtonPress = () => {
+  const handleImagePickerButtonPress = async () => {
+    ActionSheetIOS.showActionSheetWithOptions({
+      options: ['Cancel', 'Take Photo', 'Choose from Library'],
+      cancelButtonIndex: 0,
+    }, async (buttonIndex) => {
+      if (buttonIndex === 1) {
+        // navigation.navigate('Camera');
+        //open camera
+        if (!camPermission) return;
+        if (!camPermission.granted) {
+          const res = await requestPermission();
+          if (!res.granted) {
+            Alert.alert('Permission required', 'Please allow camera access to add images to the page.');
+            return;
+          }
+        }
+        //open camera
+      }
+      if (buttonIndex === 2) {
+        if (!mediaPermission) return;
+        if (!mediaPermission.granted) {
+          const res = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!res.granted) {
+            Alert.alert('Permission required', 'Please allow media access to add images to the page.');
+            return;
+          }
+        }
+        //open image picker
+        openImage();
+      }
+    });
   };
+
+  const openImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+      });
+      if (result.canceled) {
+        return;
+      }
+
+      Image.getSize(result.assets[0].uri, (w, h) => {
+        const aspectRatio = w / h;
+        const newWidth = 200;
+        const newHeight = newWidth / aspectRatio;
+        const i: PageImageType = {
+          id: generateUUID(),
+          uri: result.assets[0].uri,
+          x: width / 4,
+          y: height / 4,
+          z: 3,
+          rotate: 0,
+          scale: 1,
+          shape: 'inherit',
+          width: newWidth,
+          height: newHeight
+        };
+        setImages([...images, i]);
+      });
+
+    } catch (e) {
+      console.log(e);
+      Alert.alert('Something went wrong, please try again.');
+    }
+  };
+
+  const { width, height } = Dimensions.get('window');
 
   const handleStickerButtonPress = () => {
   };
@@ -152,12 +225,23 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const handleTextFocus = (id: string) => {
     const focused = texts.find(t => t.id === id) ?? null;
     if (!focused) return;
-    console.log("FOCUSED");
     setFocusedTextId(focused.id);
     setColor(focused.color);
     setFont(focused.font);
     setNewText(focused.body);
     setOpenInput(true);
+  };
+
+  const handleImageFocus = (id: string) => {
+  };
+
+  const handleUpdateImage = (i: PageImageType) => {
+    setImages(images.map(img => {
+      if (img.id === i.id) {
+        return i;
+      }
+      return img;
+    }));
   };
 
   return (
@@ -184,6 +268,9 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
             bottom: 0
           }}
         >
+          <Pressable
+            onPress={handleInputBlur}
+            style={{ position: 'absolute', height: height, top: 0, left: 0, right: 0 }} />
           <View style={{ width: '100%', paddingTop: 10, backgroundColor: colors.surface1 }}>
             <TextInput
               numberOfLines={5}
@@ -256,6 +343,9 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
         {texts?.map(t => t.id !== focusedTextId && (
           <MovableText key={t.id} text={t} onChange={handleUpdateText} onFocus={() => handleTextFocus(t.id)} />
         ))}
+        {images?.map(img => (
+          <MovableImage key={img.id} image={img} onChange={handleUpdateImage} onFocus={handleImageFocus} />
+        ))}
       </View>
       {overlaysShown && <View style={{
         width: '100%',
@@ -283,7 +373,163 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   );
 };
 
+type MovableImageProps = {
+  image: PageImageType;
+  onChange: (i: PageImageType) => void;
+  onFocus: (id: string) => void;
+};
 
+const MovableImage = (props: MovableImageProps) => {
+  const { image, onChange, onFocus } = props;
+  const lastOffset = useSharedValue({ x: image.x, y: image.y });
+  const offset = useSharedValue({ x: image.x, y: image.y });
+  const lastScale = useSharedValue(image.scale);
+  const imageScale = useSharedValue(image.scale);
+  const lastRotation = useSharedValue(image.rotate);
+  const rotation = useSharedValue(image.rotate);
+  const minSize = Math.min(image.width, image.height);
+  const colors = useThemeColor();
+
+  const animImageStyle = useAnimatedStyle(() => {
+    return {
+      width: image.width,
+      height: image.height,
+      position: 'absolute',
+      transform: [
+        { translateX: offset.value.x },
+        { translateY: offset.value.y },
+        { scale: imageScale.value },
+        { rotate: `${rotation.value}deg` }
+      ],
+    };
+  });
+
+  const rotateGesture = Gesture.Rotation()
+    .onStart(() => {
+      lastRotation.value = rotation.value;
+    })
+    .onUpdate((e) => {
+      rotation.value = lastRotation.value + e.rotation * 180 / Math.PI;
+    })
+    .onEnd(() => {
+      handleSetRotation(rotation.value);
+    })
+    .runOnJS(true);
+
+  const pinchGesture = Gesture.Pinch()
+    .onStart((ctx) => {
+      lastScale.value = imageScale.value;
+    })
+    .onUpdate((e) => {
+      const { scale, focalX, focalY, } = e;
+      imageScale.value = scale * lastScale.value;
+    })
+    .onEnd(() => {
+      handleSetScale(imageScale.value);
+    })
+    .runOnJS(true);
+
+  const dragGesture = Gesture.Pan()
+    .onStart((_e) => {
+    })
+    .onUpdate((e) => {
+      offset.value = {
+        x: e.translationX + lastOffset.value.x,
+        y: e.translationY + lastOffset.value.y,
+      };
+    })
+    .onEnd(() => {
+      lastOffset.value = {
+        x: offset.value.x,
+        y: offset.value.y,
+      };
+      handleSetOffsets(offset.value.x, offset.value.y);
+    })
+    .runOnJS(true);
+
+  const tapGesture = Gesture.Tap().onEnd(() => {
+    // onFocus(image.id);
+    if (image.shape === 'inherit') handleSetImageShape('square');
+    if (image.shape === 'square') handleSetImageShape('circle');
+    if (image.shape === 'circle') handleSetImageShape('heart');
+    if (image.shape === 'heart') handleSetImageShape('inherit');
+  }).runOnJS(true);
+
+  const handleSetImageShape = (shape: ImageShape) => {
+    console.log('setting shape: ', shape);
+    const t: PageImageType = {
+      ...image,
+      shape
+    };
+    onChange(t);
+  };
+
+  // const composed = Gesture.Race(rotateGesture, tapGesture, dragGesture, pinchGesture);
+  const composed = Gesture.Simultaneous(
+    tapGesture,
+    Gesture.Simultaneous(dragGesture, pinchGesture, rotateGesture)
+  );
+
+  const handleSetOffsets = (x: number, y: number) => {
+    const t: PageImageType = {
+      ...image,
+      x,
+      y,
+    };
+    onChange(t);
+  };
+
+  const handleSetRotation = (rotate: number) => {
+    const t: PageImageType = {
+      ...image,
+      rotate
+    };
+    onChange(t);
+  };
+
+  const handleSetScale = (scale: number) => {
+    const t: PageImageType = {
+      ...image,
+      scale
+    };
+    onChange(t);
+  };
+
+
+
+  return (
+    <GestureDetector gesture={composed}>
+      <Animated.View style={animImageStyle}>
+        {/* {image.shape === 'polaroid' ?
+          <View style={{ height: minSize * 1.4, borderRadius: 3, width: minSize + 16, alignItems: 'center', paddingTop: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.surface3 }}>
+            <Image
+              source={{ uri: image.uri }}
+              style={{ width: minSize, height: minSize }}
+              resizeMode='cover'
+            />
+          </View>
+          :
+} */}
+        <MaskedView
+          style={{ flex: 1, backgroundColor: 'transparent' }}
+          maskElement={
+            image.shape === 'heart'
+              ? <Ionicons name='heart' size={minSize} color='black' />
+              : image.shape === 'circle' ? <View style={{ width: minSize, height: minSize, backgroundColor: 'black', borderRadius: image.width }} />
+                : image.shape === 'square' ? <View style={{ width: minSize, height: minSize, backgroundColor: 'black', borderRadius: 0 }} />
+                  : <View style={{ width: image.width, height: image.height, backgroundColor: 'black' }}></View>
+          }
+        >
+          <Image
+            source={{ uri: image.uri }}
+            style={{ width: image.width, height: image.height }}
+            resizeMode='cover'
+          />
+        </MaskedView>
+      </Animated.View>
+    </GestureDetector>
+  );
+};
 
 
 const TextAlignContainer = ({ align, setAlign }: { align: 'left' | 'center' | 'right', setAlign: (align: 'left' | 'center' | 'right') => void; }) => {
@@ -386,24 +632,6 @@ const FontStyleContainer = (props: FontStyleContainerProps) => {
           :
           null
       }
-      {/* {FONTS.map((f, i) => (
-        <Pressable
-          key={f}
-          onPress={() => setFont(f)}
-          style={{
-            paddingHorizontal: 10,
-            height: 28,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 6,
-            borderCurve: 'continuous',
-            borderWidth: 1,
-            borderColor: f === font ? colors.primary : colors.surface3,
-            backgroundColor: f === font ? colors.secondary : colors.surface3
-          }}>
-          <Text type='p' style={{ fontFamily: f }} color={f === font ? colors.primary : colors.primaryText}>Abc</Text>
-        </Pressable>
-      ))} */}
     </ScrollView>
   );
 };
@@ -426,7 +654,6 @@ const MovableText = ({ text, onChange, onFocus }: {
       lastRotation.value = rotation.value;
     })
     .onUpdate((e) => {
-      console.log(e.rotation, e.numberOfPointers);
       rotation.value = lastRotation.value + e.rotation * 180 / Math.PI;
     })
     .onEnd(() => {
@@ -470,7 +697,11 @@ const MovableText = ({ text, onChange, onFocus }: {
   }).runOnJS(true);
 
 
-  const composed = Gesture.Race(rotateGesture, tapGesture, dragGesture, pinchGesture);
+  // const composed = Gesture.Race(rotateGesture, tapGesture, dragGesture, pinchGesture);
+  const composed = Gesture.Simultaneous(
+    tapGesture,
+    Gesture.Simultaneous(dragGesture, pinchGesture, rotateGesture)
+  );
 
   const handleSetOffsets = (x: number, y: number) => {
     const t: PageTextType = {
@@ -505,6 +736,8 @@ const MovableText = ({ text, onChange, onFocus }: {
         { scale: textScale.value },
         { rotate: `${rotation.value}deg` }
       ],
+      paddingVertical: 10,
+      paddingHorizontal: 15,
       position: 'absolute',
       zIndex: text.z,
       textAlign: text.align,

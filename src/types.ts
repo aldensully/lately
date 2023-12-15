@@ -35,16 +35,19 @@ export type Diary = {
   creation_date: string;
 };
 
-export type ImageShape = 'polaroid' | 'circle' | 'square';
+export type ImageShape = 'polaroid' | 'circle' | 'square' | 'heart' | 'inherit';
 
 export type PageImageType = {
   id: string;
+  uri: string;
   x: number;
   y: number;
   z: number;
+  rotate: number;
   shape: ImageShape;
   width: number;
   height: number;
+  scale: number;
 };
 
 export type PageTextType = {
