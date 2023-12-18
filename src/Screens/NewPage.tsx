@@ -1,10 +1,10 @@
-import { ActionSheetIOS, Alert, Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View, Image } from 'react-native';
+import { ActionSheetIOS, Alert, Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View, Image, Modal } from 'react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import * as ImagePicker from 'expo-image-picker';
 import * as Camera from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ImageShape, PageImageType, PageTextType, ScreenProps } from '../types';
+import { Diary, ImageShape, Page, PageImageType, PageTextType, ScreenProps } from '../types';
 import { Container, Text, useThemeColor } from '../Theme/Themed';
 import Header from '../Components/Header';
 import BackButton from '../Components/BackButton';
@@ -25,17 +25,26 @@ import AlignCenterIcon from '../../assets/icons/AlignCenterIcon';
 import AlignRightIcon from '../../assets/icons/AlignRightIcon';
 import KeyboardIcon from '../../assets/icons/KeyboardIcon';
 import { useCameraPermissions } from 'expo-image-picker';
+import CloseButton from '../Components/CloseButton';
+import GraphBackground from '../../assets/svg-backgrounds/GraphBackground';
+import GridBackground from '../../assets/svg-backgrounds/GridBackground';
+import BubbleBackground from '../../assets/svg-backgrounds/BubbleBackground';
+import defaultStore from '../Stores/defaultStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 
-const DoneButton = () => {
+const DoneButton = ({ onPress }: { onPress: () => void; }) => {
   const colors = useThemeColor();
   return (
-    <Pressable style={{
-      height: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 10,
-      marginRight: 10
-    }}>
+    <Pressable
+      onPress={onPress}
+      style={{
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 10,
+        marginRight: 10
+      }}>
       <Text type='h3' color={colors.primary}>Done</Text>
     </Pressable>
   );
@@ -44,14 +53,24 @@ const DoneButton = () => {
 
 const BOTTOM_CONTAINER_HEIGHT = 50;
 const { width, height } = Dimensions.get('window');
+const BACKGROUNDS = [
+  { key: 'graph', svg: <GraphBackground /> },
+  { key: 'grid', svg: <GridBackground /> },
+  { key: 'bubble', svg: <BubbleBackground /> },
+];
+
+const cellWidth = (width - 60) / 3;
+
 
 
 const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const { top, bottom } = useSafeAreaInsets();
+  const activeDiaryId = defaultStore(state => state.activeDiaryId);
   const [overlaysShown, setOverlaysShown] = useState(true);
   const [hasBackAction, setHasBackAction] = useState(false);
   const [texts, setTexts] = useState<PageTextType[]>([]);
   const [images, setImages] = useState<PageImageType[]>([]);
+  const [background, setBackground] = useState<{ type: 'image' | 'pattern', uri: string | undefined, bgKey: string; } | null>(null);
   const [keyboardFocused, setKeyboardFocused] = useState(false);
   const [openInput, setOpenInput] = useState(false);
   const [newText, setNewText] = useState('');
@@ -63,6 +82,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [camPermission, requestPermission] = useCameraPermissions();
   const [mediaPermission] = ImagePicker.useMediaLibraryPermissions();
+  const [stickerModalOpen, setStickerModalOpen] = useState(false);
+  const [backgroundPickerModalOpen, setBackgroundPickerModalOpen] = useState(false);
 
   useEffect(() => {
     Keyboard.addListener('keyboardWillShow', () => {
@@ -114,11 +135,11 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       color: color,
       font: font,
       align,
-      x: width / 4,
-      y: height / 3.5,
+      x: 20,
+      y: height / 4,
       z: 3,
       rotate: 0,
-      size: 18,
+      size: 22,
       scale: 1
     };
     setTexts([...texts, t]);
@@ -201,9 +222,11 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const { width, height } = Dimensions.get('window');
 
   const handleStickerButtonPress = () => {
+    setStickerModalOpen(true);
   };
 
   const handleBackgroundButtonPress = () => {
+    setBackgroundPickerModalOpen(true);
   };
 
   const handlePencilButtonPress = () => {
@@ -244,13 +267,91 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     }));
   };
 
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async () => {
+    if (loading) return;
+    setLoading(true);
+
+    let diaries = await AsyncStorage.getItem('diaries');
+    const parsed = JSON.parse(diaries ?? '[]');
+    const diary = parsed.find((d: Diary) => d.id === activeDiaryId);
+
+    let pageNum = 0;
+    // let diary
+
+    // const page: Page = {
+    //   id: generateUUID(),
+    //   number: diary.pages.length,
+    //   title: '',
+    //   content: '',
+    //   diary_id: '',
+    //   images: images,
+    //   texts: texts,
+    //   stickers: [],
+    //   creation_date: new Date().toISOString()
+    // };
+  };
+
   return (
     <Container backgroundColor='#fff'>
-
+      <Modal
+        presentationStyle='pageSheet'
+        animationType='slide'
+        visible={stickerModalOpen}
+        onRequestClose={() => setStickerModalOpen(false)}
+      >
+        <Container >
+          <Header
+            style={{ height: 50, paddingTop: 0, paddingHorizontal: 10 }}
+            headerLeft={<CloseButton onPress={() => setStickerModalOpen(false)} />}
+            headerTitle={<Text style={{ marginBottom: 2 }} type='h2'>Stickers</Text>}
+          />
+        </Container>
+      </Modal>
+      <Modal
+        presentationStyle='pageSheet'
+        animationType='slide'
+        visible={backgroundPickerModalOpen}
+        onRequestClose={() => setBackgroundPickerModalOpen(false)}
+      >
+        <Container >
+          <Header
+            style={{ height: 50, paddingTop: 0, paddingHorizontal: 10 }}
+            headerLeft={<CloseButton onPress={() => setBackgroundPickerModalOpen(false)} />}
+            headerTitle={<Text style={{ marginBottom: 2 }} type='h2'>Background</Text>}
+          />
+          <View style={{ flex: 1, paddingTop: 16, columnGap: 15, paddingHorizontal: 15, flexDirection: 'row', flexWrap: 'wrap', width: '100%' }}>
+            {BACKGROUNDS.map(b => (
+              <Pressable
+                onPress={() => {
+                  setBackground({
+                    bgKey: b.key,
+                    type: 'pattern',
+                    uri: undefined
+                  });
+                }}
+                key={b.key}
+                style={{
+                  width: cellWidth,
+                  borderRadius: 8,
+                  borderCurve: 'continuous',
+                  height: cellWidth * 9 / 6,
+                  borderWidth: 1,
+                  borderColor: background?.bgKey === b.key ? colors.primary : colors.surface3,
+                  overflow: 'hidden'
+                }}>
+                {b.svg}
+                {/* <GraphBackground /> */}
+              </Pressable>
+            ))}
+          </View>
+        </Container>
+      </Modal>
       {overlaysShown && <Header
         style={{ backgroundColor: colors.surface1 }}
         headerLeft={<BackButton navigate />}
-        headerRight={<DoneButton />}
+        headerRight={<DoneButton onPress={handleSave} />}
       />
       }
       {openInput &&
@@ -288,7 +389,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
                 minHeight: 36,
                 fontFamily: font,
                 lineHeight: 22,
-                fontSize: 18,
+                fontSize: 22,
                 textAlign: align,
                 paddingBottom: 10,
                 color: color
@@ -339,9 +440,13 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
           </View>
         </KeyboardAvoidingView>
       }
-      <View style={{ flex: 1, zIndex: 1, overflow: 'hidden' }}>
+      <View style={{ flex: 1, zIndex: 1, overflow: 'hidden', backgroundColor: colors.surface2 }}>
+        {background && background.type === 'image' ? <Image style={{ position: 'absolute', zIndex: 0, left: 0, top: 0, right: 0, bottom: 0 }} source={{ uri: background.uri }} /> : <SvgBackground bgKey={background?.bgKey} />}
         {texts?.map(t => t.id !== focusedTextId && (
-          <MovableText key={t.id} text={t} onChange={handleUpdateText} onFocus={() => handleTextFocus(t.id)} />
+          <MovableText key={t.id} text={t}
+            onChange={handleUpdateText}
+            onFocus={() => handleTextFocus(t.id)}
+          />
         ))}
         {images?.map(img => (
           <MovableImage key={img.id} image={img} onChange={handleUpdateImage} onFocus={handleImageFocus} />
@@ -361,12 +466,12 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
         justifyContent: 'space-evenly',
         zIndex: 2
       }}>
-        <UndoButton hasBackAction={hasBackAction} onPress={handleUndo} />
+        {/* <UndoButton hasBackAction={hasBackAction} onPress={handleUndo} /> */}
         <TextButton onPress={handleTextButtonPress} />
         <ImagePickerButton onPress={handleImagePickerButtonPress} />
         <StickerButton onPress={handleStickerButtonPress} />
         <BackgroundButton onPress={handleBackgroundButtonPress} />
-        <PencilButton />
+        {/* <PencilButton /> */}
       </View>
       }
     </Container>
@@ -500,16 +605,6 @@ const MovableImage = (props: MovableImageProps) => {
   return (
     <GestureDetector gesture={composed}>
       <Animated.View style={animImageStyle}>
-        {/* {image.shape === 'polaroid' ?
-          <View style={{ height: minSize * 1.4, borderRadius: 3, width: minSize + 16, alignItems: 'center', paddingTop: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.surface3 }}>
-            <Image
-              source={{ uri: image.uri }}
-              style={{ width: minSize, height: minSize }}
-              resizeMode='cover'
-            />
-          </View>
-          :
-} */}
         <MaskedView
           style={{ flex: 1, backgroundColor: 'transparent' }}
           maskElement={
@@ -573,6 +668,21 @@ const TextAlignContainer = ({ align, setAlign }: { align: 'left' | 'center' | 'r
         <AlignRightIcon size={24} color={colors.primaryText} />
       </Pressable>
     );
+  }
+};
+
+
+//TODO
+const SvgBackground = ({ bgKey }: { bgKey: string | null | undefined; }) => {
+  switch (bgKey) {
+    case 'graph':
+      return <GraphBackground />;
+    case 'grid':
+      return <GridBackground />;
+    case 'bubble':
+      return <BubbleBackground />;
+    default:
+      return null;
   }
 };
 
@@ -643,11 +753,14 @@ const MovableText = ({ text, onChange, onFocus }: {
 }) => {
   const start = useSharedValue({ x: text.x, y: text.y });
   const offset = useSharedValue({ x: text.x, y: text.y });
+  const grabberOffset = useSharedValue({ x: text.x, y: text.y });
+  const grabberStart = useSharedValue({ x: text.x, y: text.y });
   const textScale = useSharedValue(text.scale);
   const lastScale = useSharedValue(text.scale);
   const fontSize = useSharedValue(text.size);
   const lastRotation = useSharedValue(text.rotate);
   const rotation = useSharedValue(text.rotate);
+  const containerSize = useSharedValue({ width: 0, height: 40 });
 
   const rotateGesture = Gesture.Rotation()
     .onStart(() => {
@@ -694,7 +807,8 @@ const MovableText = ({ text, onChange, onFocus }: {
 
   const tapGesture = Gesture.Tap().onEnd(() => {
     onFocus();
-  }).runOnJS(true);
+  })
+    .runOnJS(true);
 
 
   // const composed = Gesture.Race(rotateGesture, tapGesture, dragGesture, pinchGesture);
@@ -728,6 +842,8 @@ const MovableText = ({ text, onChange, onFocus }: {
     onChange(t);
   };
 
+  const colors = useThemeColor();
+
   const animStyle = useAnimatedStyle(() => {
     return {
       transform: [
@@ -736,9 +852,12 @@ const MovableText = ({ text, onChange, onFocus }: {
         { scale: textScale.value },
         { rotate: `${rotation.value}deg` }
       ],
+      borderWidth: 1,
+      borderColor: colors.secondaryText,
+      width: containerSize.value.width,
+      height: containerSize.value.height,
       paddingVertical: 10,
       paddingHorizontal: 15,
-      position: 'absolute',
       zIndex: text.z,
       textAlign: text.align,
       fontSize: text.size,
@@ -746,14 +865,57 @@ const MovableText = ({ text, onChange, onFocus }: {
     };
   });
 
+  const animGrabberStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: offset.value.x + (containerSize.value.width * textScale.value) },
+        { translateY: offset.value.y + (containerSize.value.height / 2 * textScale.value) / 2 - 24 },
+      ],
+      zIndex: 1000,
+      width: 20,
+      height: 20,
+      backgroundColor: 'pink',
+      borderRadius: 20
+    };
+  });
+
+  const grabGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      grabberOffset.value = {
+        x: e.translationX + grabberStart.value.x,
+        y: e.translationY + grabberStart.value.y,
+      };
+      containerSize.value = {
+        width: grabberOffset.value.x - offset.value.x,
+        height: grabberOffset.value.y - offset.value.y,
+      };
+    })
+    .onEnd(() => {
+      grabberStart.value = {
+        x: grabberOffset.value.x,
+        y: grabberOffset.value.y,
+      };
+    });
+
   return (
-    <GestureDetector gesture={composed}>
-      {/* <Animated.View style={animStyle}> */}
-      <Animated.Text
-        style={[animStyle, { fontFamily: text.font }]}
-      >{text.body}</Animated.Text>
-      {/* </Animated.View> */}
-    </GestureDetector>
+    <>
+      <GestureDetector gesture={composed}>
+        <Animated.Text
+          onLayout={(e) => {
+            containerSize.value = {
+              width: e.nativeEvent.layout.width,
+              height: e.nativeEvent.layout.height
+            };
+          }}
+          style={[animStyle, { fontFamily: text.font }]}
+        >
+          {text.body}
+        </Animated.Text>
+      </GestureDetector>
+      <GestureDetector gesture={grabGesture}>
+        <Animated.View style={animGrabberStyle} />
+      </GestureDetector>
+    </>
   );
 };
 
