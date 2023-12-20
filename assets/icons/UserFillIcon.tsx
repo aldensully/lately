@@ -3,7 +3,7 @@ import Svg, { SvgProps, Path } from "react-native-svg";
 import { IconProps } from "../../src/types";
 import { View } from "react-native";
 
-const ChevronDownIcon = (props: SvgProps & IconProps) => (
+const UserFillIcon = (props: SvgProps & IconProps) => (
   <View style={{
     width: props.size,
     height: props.size,
@@ -18,19 +18,19 @@ const ChevronDownIcon = (props: SvgProps & IconProps) => (
         fill="none"
         {...props}
       >
-        {/* <Path
-          fill={props.color}
-          d="M12.157 17.555c.252 0 .503-.1.673-.292l7.775-7.965a.896.896 0 0 0 .271-.643.9.9 0 0 0-.914-.924c-.251 0-.482.1-.653.261l-7.694 7.865h1.075L4.996 7.992a.918.918 0 0 0-.653-.261.9.9 0 0 0-.914.924c0 .251.1.472.27.653l7.775 7.955c.191.191.422.292.683.292Z"
-        /> */}
         <Path
           fill={props.color}
-          fillRule="evenodd"
-          d="M12.707 15.707a1 1 0 0 1-1.414 0L5.636 10.05A1 1 0 1 1 7.05 8.636l4.95 4.95 4.95-4.95a1 1 0 0 1 1.414 1.414l-5.657 5.657Z"
-          clipRule="evenodd"
+          d="M16.836 14.501a5 5 0 0 1 4.995 4.783l.005.217v1a2 2 0 0 1-1.85 1.995l-.15.005h-14a2 2 0 0 1-1.995-1.85l-.005-.15v-1a5 5 0 0 1 4.783-4.995l.217-.005h8Zm-4-12a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z"
         />
+        {/* <Path
+          fill={props.color}
+          fillRule="evenodd"
+          d="M7.952 17.306a1 1 0 0 1-1.904-.612L10.395 3.17a1.686 1.686 0 0 1 3.21 0l4.347 13.524a1 1 0 1 1-1.904.612L14.664 13H9.336l-1.384 4.306ZM9.979 11h4.042L12 4.712 9.979 11ZM4 21a1 1 0 0 1 1-1h14a1 1 0 0 1 0 2H5a1 1 0 0 1-1-1Z"
+          clipRule="evenodd"
+        /> */}
       </Svg>
     </View>
   </View>
 );
 
-export default ChevronDownIcon;
+export default UserFillIcon;

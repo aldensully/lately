@@ -2,8 +2,7 @@ import * as React from "react";
 import Svg, { SvgProps, Path } from "react-native-svg";
 import { IconProps } from "../../src/types";
 import { View } from "react-native";
-
-const ChevronRightIcon = (props: SvgProps & IconProps) => (
+const TrashIcon = (props: SvgProps & IconProps) => (
   <View style={{
     width: props.size,
     height: props.size,
@@ -20,12 +19,11 @@ const ChevronRightIcon = (props: SvgProps & IconProps) => (
       >
         <Path
           fill={props.color}
-          // d="M16.68 12.147c0-.25-.1-.482-.29-.663L8.434 3.69a.934.934 0 0 0-.663-.261.899.899 0 0 0-.914.914c0 .25.1.482.261.653l7.313 7.151L7.118 19.3a.935.935 0 0 0-.26.653c0 .522.4.914.913.914.261 0 .482-.09.663-.271l7.956-7.785a.915.915 0 0 0 .29-.663Z"
-          d="M16.06 10.94a1.5 1.5 0 0 1 0 2.12l-5.656 5.658a1.5 1.5 0 1 1-2.121-2.122L12.879 12 8.283 7.404a1.5 1.5 0 0 1 2.12-2.122l5.658 5.657-.001.001Z"
+          d="M14.28 2a2 2 0 0 1 1.897 1.368L16.72 5H20a1 1 0 1 1 0 2l-.003.071-.867 12.143A3 3 0 0 1 16.138 22H7.862a3 3 0 0 1-2.992-2.786L4.003 7.07A1.01 1.01 0 0 1 4 7a1 1 0 0 1 0-2h3.28l.543-1.632A2 2 0 0 1 9.721 2h4.559Zm3.717 5H6.003l.862 12.071a1 1 0 0 0 .997.929h8.276a1 1 0 0 0 .997-.929L17.997 7ZM10 10a1 1 0 0 1 .993.883L11 11v5a1 1 0 0 1-1.993.117L9 16v-5a1 1 0 0 1 1-1Zm4 0a1 1 0 0 1 1 1v5a1 1 0 0 1-2 0v-5a1 1 0 0 1 1-1Zm.28-6H9.72l-.333 1h5.226l-.333-1Z"
         />
       </Svg>
     </View>
   </View>
 );
 
-export default ChevronRightIcon;
+export default TrashIcon;

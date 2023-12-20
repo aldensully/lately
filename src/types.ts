@@ -1,6 +1,6 @@
 import { NavigationProp } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { LegacyRef } from 'react';
+import { LegacyRef, ReactNode } from 'react';
 import { TextInput } from 'react-native';
 
 //main stack
@@ -14,6 +14,10 @@ export type NavigationScreens = {
   FeedbackScreen: undefined;
   Menu: undefined;
   NewPage: undefined;
+  SignUpOptionsScreen: undefined; //choose apple or google sign up. its a modal
+  EditProfileScreen: undefined; //choose apple or google sign up. its a modal
+  CreateFirstDiaryScreen: { newUser: User; imageUri?: string | undefined; };
+  Page: { page: Page, diary: Diary; };
 };
 
 //screen props
@@ -23,13 +27,33 @@ export type UseNavigationType = NavigationProp<NavigationScreens>;
 export type User = {
   id: string;
   username: string;
+  thumbnail?: string;
   creation_date: string;
+};
+
+export type JournalTheme = {
+  name: string;
+  backgroundColor: string;
+  spineColor: string;
+  textColor: string;
+  font: string;
+};
+
+export type ContextMenuOption = {
+  name: string;
+  icon: ReactNode;
+  alignment: 'list-item' | 'center';
+  color: string;
 };
 
 export type Diary = {
   id: string;
   title: string;
-  color: string;
+  backgroundColor: string;
+  spineColor: string;
+  textColor: string;
+  font: string;
+  image?: string | null;
   user_id: string;
   pages: Page[];
   creation_date: string;
@@ -55,12 +79,15 @@ export type PageTextType = {
   body: string;
   x: number;
   y: number;
+  width: number;
+  height: number;
   z: number;
   size: number;
   scale: number;
   align: 'left' | 'center' | 'right';
   rotate: number;
   color: string;
+  backgroundColor?: string | null;
   font: string;
 };
 
@@ -75,7 +102,7 @@ export type PageStickerType = {
 
 export type Page = {
   id: string;
-  number: string;
+  count: number;
   title: string;
   content: string;
   diary_id: string;

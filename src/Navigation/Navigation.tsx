@@ -15,6 +15,10 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import MenuScreen from '../Screens/MenuScreen';
 import CustomizeScreen from '../Screens/CustomizeScreen';
 import NewPage from '../Screens/NewPage';
+import Page from '../Screens/Page';
+import SignUpOptionsScreen from '../Screens/SignUpOptionsScreen';
+import EditProfileScreen from '../Screens/EditProfileScreen';
+import CreateFirstDiaryScreen from '../Screens/CreateFirstDiaryScreen';
 
 const Stack = createNativeStackNavigator<NavigationScreens>();
 const Drawer = createDrawerNavigator<NavigationScreens>();
@@ -38,9 +42,19 @@ const Navigation = () => {
           component={Main}
         />
         <Stack.Screen options={{ presentation: 'modal', animation: 'slide_from_bottom' }} name="CustomizeScreen" component={CustomizeScreen} />
+        <Stack.Screen options={{
+          presentation: 'modal', animation: 'slide_from_bottom',
+          headerShown: true,
+          headerTitle: 'Sign Up / Log In',
+          headerShadowVisible: false,
+          headerLeft: renderCloseButton,
+        }} name="SignUpOptionsScreen" component={SignUpOptionsScreen} />
         <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false }} name="NewPage" component={NewPage} />
+        <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false, gestureEnabled: false }} name="CreateFirstDiaryScreen" component={CreateFirstDiaryScreen} />
+        <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false, gestureEnabled: false }} name="EditProfileScreen" component={EditProfileScreen} />
         <Stack.Screen options={{ headerShown: false, gestureEnabled: false, animation: 'none' }} name="Welcome" component={WelcomeScreen} />
         <Stack.Screen options={{ headerShown: false, gestureEnabled: false, animation: 'none' }} name="OnboardingTheme" component={OnboardingTheme} />
+        <Stack.Screen options={{ headerShown: false, gestureEnabled: true, animation: 'slide_from_right' }} name="Page" component={Page} />
       </Stack.Navigator>
     </NavigationContainer>
   );

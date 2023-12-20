@@ -29,17 +29,17 @@ type TextVariant = {
 
 const textSizes = {
   xs: {
-    fontSize: 13,
+    fontSize: 15,
     // lineHeight: 14,
     // fontWeight: '400'
   },
   sm: {
-    fontSize: 14,
+    fontSize: 16,
     // lineHeight: 14,
     // fontWeight: '400'
   },
   p: {
-    fontSize: 16,
+    fontSize: 18,
     // lineHeight: 20,
     // fontWeight: '400'
   },
@@ -189,11 +189,12 @@ export const Container = (props: ContainerProps) => {
 
 const styles = StyleSheet.create({
   buttonStyle: {
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 24,
     paddingVertical: 12,
     alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
+    borderCurve: 'continuous'
   }
 });

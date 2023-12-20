@@ -28,11 +28,11 @@ const Header = (props: Props) => {
         justifyContent: 'flex-start',
         flexDirection: 'row',
         flexBasis: 1,
-        flexGrow: 1
+        flexGrow: 1,
       }}>
         {headerLeft}
       </View>
-      <View style={{
+      {headerTitle && <View style={{
         height: '100%',
         alignItems: 'flex-end',
         justifyContent: 'center',
@@ -43,6 +43,7 @@ const Header = (props: Props) => {
       }}>
         {headerTitle}
       </View>
+      }
       <View style={{
         height: '100%',
         alignItems: 'flex-end',

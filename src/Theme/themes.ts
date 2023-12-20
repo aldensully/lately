@@ -1,3 +1,5 @@
+import { JournalTheme } from "../types";
+
 type BrandTheme = {
   colors: {
     background: string,
@@ -37,3 +39,62 @@ export const LightTheme: BrandTheme = {
   },
   dark: false
 };
+
+export const JournalThemes: JournalTheme[] = [
+  {
+    name: 'Blue',
+    backgroundColor: '#3E81E5',
+    spineColor: '#3471CC',
+    textColor: '#FFFFFF',
+    font: 'SingleDay'
+  },
+  {
+    name: 'Pink',
+    backgroundColor: '#E8A7C6',
+    spineColor: '#DD96B8',
+    textColor: '#FFFFFF',
+    font: 'SingleDay'
+  },
+  {
+    name: 'Red',
+    backgroundColor: '#F75A52',
+    spineColor: '#D64740',
+    textColor: '#FFFFFF',
+    font: 'SingleDay'
+  },
+  {
+    name: 'Green',
+    backgroundColor: '#73C577',
+    spineColor: '#64B068',
+    textColor: '#FFFFFF',
+    font: 'SingleDay'
+  },
+  {
+    name: 'Gray',
+    backgroundColor: '#D6D1C6',
+    spineColor: '#C0BBAF',
+    textColor: '#333333',
+    font: 'SingleDay'
+  },
+  {
+    name: 'Black',
+    backgroundColor: '#2E3537',
+    spineColor: '#262D2F',
+    textColor: '#FFFFFF',
+    font: 'SingleDay'
+  },
+  {
+    name: 'Teal',
+    backgroundColor: '#218185',
+    spineColor: '#1C6467',
+    textColor: '#FFFFFF',
+    font: 'SingleDay'
+  },
+  {
+    name: 'Purple',
+    backgroundColor: '#D9ABE5',
+    spineColor: '#C493D0',
+    textColor: '#FFFFFF',
+    font: 'SingleDay'
+  },
+];

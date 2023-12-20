@@ -17,7 +17,7 @@ const MenuButton = () => {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-      <MenuIcon size={28} color={colors.primaryText} />
+      <MenuIcon size={24} color={colors.primaryText} />
     </Pressable>
   );
 };

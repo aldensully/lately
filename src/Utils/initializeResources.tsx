@@ -1,9 +1,16 @@
 import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
+import { getActiveDiary } from './utilFns';
+import defaultStore from '../Stores/defaultStore';
 
 let fonts = {
   'SingleDay': require('../../assets/fonts/Single_Day/SingleDay-Regular.ttf'),
+  'Nunito-Bold': require('../../assets/fonts/Nunito/Nunito-Bold.ttf'),
+  'Nunito-Regular': require('../../assets/fonts/Nunito/Nunito-Regular.ttf'),
+  'Nunito-SemiBold': require('../../assets/fonts/Nunito/Nunito-SemiBold.ttf'),
+  'Nunito-Black': require('../../assets/fonts/Nunito/Nunito-Black.ttf'),
+  'Nunito-ExtraBold': require('../../assets/fonts/Nunito/Nunito-ExtraBold.ttf'),
 };
 
 const initializeResources = () => {
@@ -18,14 +25,13 @@ const initializeResources = () => {
 
         //load any resources
         const Promises: Promise<any>[] = [
-          Font.loadAsync(fonts)
+          Font.loadAsync(fonts),
         ];
 
         const res = await Promise.allSettled(Promises);
 
-        res.forEach((r) => {
+        res.forEach((r, i) => {
           if (r.status === 'rejected') {
-            //handle errors
             console.log(r.reason);
           }
         });

@@ -3,7 +3,7 @@ import { NavigationScreens } from '../types';
 
 export const navigationRef = createNavigationContainerRef<NavigationScreens>();
 
-export function navigate(name: any, params: any) {
+export function navigate(name: keyof NavigationScreens, params: any) {
   if (navigationRef.isReady()) {
     navigationRef.navigate(name, params);
   }

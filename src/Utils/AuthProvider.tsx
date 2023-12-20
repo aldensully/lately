@@ -7,6 +7,7 @@ import { NavigationScreens, User } from '../types';
 import { navigationRef } from '../Navigation/NavigationRef';
 import { db, auth } from '../../firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDbUser, userHasDiary } from './utilFns';
 
 const AuthProvider = ({ children }: any) => {
   const setUser = defaultStore(state => state.setUser);
@@ -15,21 +16,10 @@ const AuthProvider = ({ children }: any) => {
 
   //uncomment this when you have firebase setup
 
-  async function getDbUser(uid: string): Promise<User | null> {
-    const docRef = doc(db, "users", uid);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return {
-        id: uid,
-        ...docSnap.data(),
-      } as User;
-    }
-    return null;
-  }
-
   const handleNavigation = (route: keyof NavigationScreens) => {
     try {
       if (navigationRef?.isReady()) {
+        //@ts-ignore
         navigationRef?.navigate(route);
       } else {
         setTimeout(() => {
@@ -48,24 +38,27 @@ const AuthProvider = ({ children }: any) => {
         const dbUser = await getDbUser(u.uid);
         if (dbUser) {
           setUser(dbUser);
-          handleNavigation('Home');
+
+          const hasDiary = await userHasDiary(dbUser.id);
+          if (hasDiary) handleNavigation('Main');
+          else handleNavigation('CreateFirstDiaryScreen');
         } else {
-          handleNavigation('Welcome');
-          Alert.alert('Error', 'User not found, contact support: aw.sullivan17@gmail.com');
+          handleNavigation('EditProfileScreen');
         }
       } else {
-        setHasAccount(false);
-        console.log('no auth user, checking for local user');
-        const res = await AsyncStorage.getItem('user');
-        if (res === null) {
-          handleNavigation('OnboardingTheme');
-          setUser(null);
-        } else {
-          console.log('found local user');
-          const usr = JSON.parse(res);
-          setUser(usr);
-          handleNavigation('Main');
-        }
+        navigationRef?.navigate('Welcome');
+        // setHasAccount(false);
+        // console.log('no auth user, checking for local user');
+        // const res = await AsyncStorage.getItem('user');
+        // if (res === null) {
+        //   handleNavigation('OnboardingTheme');
+        //   setUser(null);
+        // } else {
+        //   console.log('found local user');
+        //   const usr = JSON.parse(res);
+        //   setUser(usr);
+        //   handleNavigation('Main');
+        // }
       }
       setLoadingUser(false);
     });

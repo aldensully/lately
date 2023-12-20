@@ -1,7 +1,6 @@
 import { ActionSheetIOS, Alert, Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View, Image, Modal } from 'react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import * as ImagePicker from 'expo-image-picker';
-import * as Camera from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Diary, ImageShape, Page, PageImageType, PageTextType, ScreenProps } from '../types';
@@ -15,11 +14,9 @@ import BackgroundIcon from '../../assets/icons/BackgroundIcon';
 import TextIcon from '../../assets/icons/TextIcon';
 import ImageIcon from '../../assets/icons/ImageIcon';
 import BrushIcon from '../../assets/icons/BrushIcon';
-import { generateUUID } from '../Utils/utilFns';
+import { apiCreatePage, apiListDiaries, generateUUID, getActiveDiary } from '../Utils/utilFns';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { TapGesture } from 'react-native-gesture-handler/lib/typescript/handlers/gestures/tapGesture';
-import ColorPicker, { HueSlider, Panel1, Preview } from 'reanimated-color-picker';
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import AlignLeftIcon from '../../assets/icons/AlignLeftIcon';
 import AlignCenterIcon from '../../assets/icons/AlignCenterIcon';
 import AlignRightIcon from '../../assets/icons/AlignRightIcon';
@@ -32,6 +29,15 @@ import BubbleBackground from '../../assets/svg-backgrounds/BubbleBackground';
 import defaultStore from '../Stores/defaultStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import TextColorIcon from '../../assets/icons/TextColorIcon';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import ContextMenu from '../Components/ContextMenu';
+import { useTheme } from '@react-navigation/native';
+import CropIcon from '../../assets/icons/CropIcon';
+import TrashIcon from '../../assets/icons/TrashIcon';
+import { query } from 'firebase/firestore';
+
 
 const DoneButton = ({ onPress }: { onPress: () => void; }) => {
   const colors = useThemeColor();
@@ -65,7 +71,6 @@ const cellWidth = (width - 60) / 3;
 
 const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const { top, bottom } = useSafeAreaInsets();
-  const activeDiaryId = defaultStore(state => state.activeDiaryId);
   const [overlaysShown, setOverlaysShown] = useState(true);
   const [hasBackAction, setHasBackAction] = useState(false);
   const [texts, setTexts] = useState<PageTextType[]>([]);
@@ -78,12 +83,49 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const [focusedTextId, setFocusedTextId] = useState<string | null>(null);
   const [font, setFont] = useState('SingleDay');
   const [color, setColor] = useState('#000000');
+  const [backgroundTextColor, setBackgroundTextColor] = useState<string | null>(null);
   const [align, setAlign] = useState<'left' | 'center' | 'right'>('left');
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [camPermission, requestPermission] = useCameraPermissions();
   const [mediaPermission] = ImagePicker.useMediaLibraryPermissions();
   const [stickerModalOpen, setStickerModalOpen] = useState(false);
   const [backgroundPickerModalOpen, setBackgroundPickerModalOpen] = useState(false);
+  const [bgColorPickerOpen, setBgColorPickerOpen] = useState(false);
+  const lastColorOffsetX = useSharedValue(0);
+  const colorOffsetX = useSharedValue(0);
+  const bgLastColorOffsetX = useSharedValue(0);
+  const bgColorOffsetX = useSharedValue(0);
+  const colorArray = ['#000000', '#FF0000', '#FF7A00', '#FAF11D', '#37D300', '#00A3FF', '#9E00FF', '#FF00E6', '#FFFFFF'];
+  const [maxZ, setMaxZ] = useState(1);
+  const { data: activeDiary, isLoading } = useQuery({ queryKey: ['activeDiary'], queryFn: () => user && getActiveDiary(user.id) });
+  const queryClient = useQueryClient();
+  const user = defaultStore(state => state.user);
+
+  const createPageMutation = useMutation({
+    mutationFn: async (newPage: Page) => apiCreatePage(newPage),
+    onMutate: async (newPage: Page) => {
+      const oldDiaries = queryClient.getQueryData(['diaries']) as Diary[];
+      const newDiaries = oldDiaries.map(d => {
+        if (d.id === activeDiary?.id) {
+          return {
+            ...d,
+            pages: [newPage, ...d.pages]
+          };
+        }
+        return d;
+      });
+      queryClient.setQueryData(['diaries'], newDiaries);
+      queryClient.setQueryData(['activeDiary'], newDiaries.find(d => d.id === activeDiary?.id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['diaries'] });
+      queryClient.invalidateQueries({ queryKey: ['activeDiary'] });
+    },
+    onError: (e) => {
+      console.log(e);
+      Alert.alert('There was an error saving your page, please try again.');
+    }
+  });
 
   useEffect(() => {
     Keyboard.addListener('keyboardWillShow', () => {
@@ -98,10 +140,6 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     };
   }, []);
 
-
-  const handleUndo = () => {
-  };
-
   const handleTextButtonPress = () => {
     if (keyboardFocused) {
       Keyboard.dismiss();
@@ -113,22 +151,40 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const handleInputBlur = () => {
     setColorPickerOpen(false);
     setOpenInput(false);
+    bgColorOffsetX.value = 50;
+    colorOffsetX.value = 0;
+    setBackgroundTextColor(null);
+    setColor('#000000');
+    setColorPickerOpen(false);
+    setBgColorPickerOpen(false);
+
     if (focusedTextId) {
+      if (newText.length === 0) {
+        const newT = texts.filter(t => t.id !== focusedTextId);
+        setTexts(newT);
+        setFocusedTextId(null);
+        setNewText('');
+        return;
+      }
       const t = texts.find(t => t.id === focusedTextId) ?? null;
       if (!t) return;
-      const newT = {
+      const newT: PageTextType = {
         ...t,
         color,
         font,
         body: newText,
-        align
+        align,
+        z: maxZ,
+        backgroundColor: backgroundTextColor ?? null
       };
       handleUpdateText(newT);
       setFocusedTextId(null);
       setOpenInput(false);
       setNewText('');
+      setMaxZ(z => z + 1);
       return;
     }
+    if (newText.length === 0) return;
     const t: PageTextType = {
       id: generateUUID(),
       body: newText,
@@ -137,18 +193,19 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       align,
       x: 20,
       y: height / 4,
-      z: 3,
+      z: maxZ,
       rotate: 0,
+      width: 100, //placeholder values
+      height: 30,//placeholder values
       size: 22,
       scale: 1
     };
+    if (backgroundTextColor) t.backgroundColor = backgroundTextColor;
     setTexts([...texts, t]);
     setOpenInput(false);
     setFocusedTextId(null);
     setNewText('');
-  };
-
-  const handleInputFocus = () => {
+    setMaxZ(z => z + 1);
   };
 
   const handleImagePickerButtonPress = async () => {
@@ -187,8 +244,10 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const openImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
+        // mediaTypes: ImagePicker.MediaTypeOptions.Images,
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: false,
+        quality: 0.1
       });
       if (result.canceled) {
         return;
@@ -203,7 +262,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
           uri: result.assets[0].uri,
           x: width / 4,
           y: height / 4,
-          z: 3,
+          z: maxZ,
           rotate: 0,
           scale: 1,
           shape: 'inherit',
@@ -211,6 +270,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
           height: newHeight
         };
         setImages([...images, i]);
+        setMaxZ(z => z + 1);
       });
 
     } catch (e) {
@@ -238,11 +298,12 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const handleUpdateText = (t: PageTextType) => {
     const newT = texts.map(text => {
       if (text.id === t.id) {
-        return t;
+        return { ...t, z: maxZ };
       }
       return text;
     });
     setTexts(newT);
+    setMaxZ(z => z + 1);
   };
 
   const handleTextFocus = (id: string) => {
@@ -252,6 +313,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     setColor(focused.color);
     setFont(focused.font);
     setNewText(focused.body);
+    setBackgroundTextColor(focused.backgroundColor ?? null);
     setOpenInput(true);
   };
 
@@ -261,10 +323,11 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const handleUpdateImage = (i: PageImageType) => {
     setImages(images.map(img => {
       if (img.id === i.id) {
-        return i;
+        return { ...i, z: maxZ };
       }
       return img;
     }));
+    setMaxZ(z => z + 1);
   };
 
   const [loading, setLoading] = useState(false);
@@ -273,25 +336,104 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     if (loading) return;
     setLoading(true);
 
-    let diaries = await AsyncStorage.getItem('diaries');
-    const parsed = JSON.parse(diaries ?? '[]');
-    const diary = parsed.find((d: Diary) => d.id === activeDiaryId);
+    if (!activeDiary) {
+      setLoading(false);
+      Alert.alert("There was an error loading your diary!");
+      return;
+    }
 
-    let pageNum = 0;
-    // let diary
+    const pageCount = activeDiary.pages.length + 1;
 
-    // const page: Page = {
-    //   id: generateUUID(),
-    //   number: diary.pages.length,
-    //   title: '',
-    //   content: '',
-    //   diary_id: '',
-    //   images: images,
-    //   texts: texts,
-    //   stickers: [],
-    //   creation_date: new Date().toISOString()
-    // };
+    const page: Page = {
+      id: generateUUID(),
+      count: pageCount,
+      title: new Date().toISOString().split('T')[0],
+      content: '',
+      diary_id: activeDiary.id,
+      images: images,
+      texts: texts,
+      stickers: [],
+      creation_date: new Date().toISOString()
+    };
+
+    createPageMutation.mutate(page);
+
+    Alert.alert("Your page was saved!");
+
+    navigation.goBack();
   };
+
+  const bgAnimColorDragStyle = useAnimatedStyle(() => {
+    const c = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
+    return {
+      width: 20,
+      transform: [{
+        translateX: bgColorOffsetX.value + 10
+      }],
+      borderRadius: 20,
+      height: 20,
+      backgroundColor: c,
+      borderWidth: 1,
+      borderColor: '#444',
+      position: 'absolute',
+    };
+  });
+
+  const bgColorDragGesture = Gesture.Pan()
+    .onStart(() => {
+      bgLastColorOffsetX.value = bgColorOffsetX.value;
+    })
+    .onUpdate(e => {
+      if (e.translationX + bgLastColorOffsetX.value < 0 || e.translationX + bgLastColorOffsetX.value > 200) return;
+      bgColorOffsetX.value = bgLastColorOffsetX.value + e.translationX;
+      const newColor = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
+      setBackgroundTextColor(newColor);
+    })
+    .onEnd(e => {
+      const newColor = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
+      setBackgroundTextColor(newColor);
+    })
+    .runOnJS(true);
+
+
+
+  const animColorDragStyle = useAnimatedStyle(() => {
+    const c = interpolateColor(colorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
+    return {
+      width: 20,
+      transform: [{
+        translateX: colorOffsetX.value + 10
+      }],
+      borderRadius: 20,
+      height: 20,
+      backgroundColor: c,
+      borderWidth: 1,
+      borderColor: '#444',
+      position: 'absolute',
+    };
+  });
+
+  const colorDragGesture = Gesture.Pan()
+    .onStart(() => {
+      lastColorOffsetX.value = colorOffsetX.value;
+    })
+    .onUpdate(e => {
+      if (e.translationX + lastColorOffsetX.value < 0 || e.translationX + lastColorOffsetX.value > 200) return;
+      colorOffsetX.value = lastColorOffsetX.value + e.translationX;
+      const newColor = interpolateColor(colorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
+      setColor(newColor);
+    })
+    .onEnd(e => {
+      const newColor = interpolateColor(colorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
+      setColor(newColor);
+    })
+    .runOnJS(true);
+
+
+  const handleDeleteImage = (id: string) => {
+    setImages(images.filter(i => i.id !== id));
+  };
+
 
   return (
     <Container backgroundColor='#fff'>
@@ -348,12 +490,11 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
           </View>
         </Container>
       </Modal>
-      {overlaysShown && <Header
+      <Header
         style={{ backgroundColor: colors.surface1 }}
         headerLeft={<BackButton navigate />}
         headerRight={<DoneButton onPress={handleSave} />}
       />
-      }
       {openInput &&
         <KeyboardAvoidingView
           behavior={'height'}
@@ -383,44 +524,97 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
               value={newText}
               onChangeText={setNewText}
               placeholder='Start typing...'
-              placeholderTextColor={colors.secondaryText}
+              placeholderTextColor={color}
               style={{
                 paddingHorizontal: 16,
-                minHeight: 36,
+                backgroundColor: backgroundTextColor ?? 'transparent',
+                minHeight: 30,
                 fontFamily: font,
-                lineHeight: 22,
+                lineHeight: 24,
                 fontSize: 22,
                 textAlign: align,
-                paddingBottom: 10,
+                paddingBottom: 4,
                 color: color
               }}
               onBlur={handleInputBlur}
-              onFocus={handleInputFocus}
             />
+            {colorPickerOpen && <View style={{
+              paddingHorizontal: 20,
+              height: 40,
+              justifyContent: 'center',
+            }}>
+              <LinearGradient
+                colors={colorArray}
+                start={[0, 0]}
+                end={[1, 1]}
+                style={{ width: 200, height: 12, borderRadius: 20 }}
+              />
+              <GestureDetector gesture={colorDragGesture}>
+                <Animated.View
+                  style={animColorDragStyle}
+                />
+              </GestureDetector>
+            </View>
+            }
+            {bgColorPickerOpen && <View style={{
+              paddingHorizontal: 20,
+              height: 40,
+              justifyContent: 'center',
+            }}>
+              <LinearGradient
+                colors={colorArray}
+                start={[0, 0]}
+                end={[1, 1]}
+                style={{ width: 200, height: 12, borderRadius: 20 }}
+              />
+              <GestureDetector gesture={bgColorDragGesture}>
+                <Animated.View
+                  style={bgAnimColorDragStyle}
+                />
+              </GestureDetector>
+            </View>
+            }
             <View style={{ height: 40, gap: 10, width: '100%', paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center' }}>
-              {colorPickerOpen && <View style={{
-                position: 'absolute',
-                zIndex: 1000,
-                left: 20,
-                bottom: 150,
-                width: 200,
-                height: 200,
-              }}>
-                <ColorPicker style={{ gap: 16 }} onChange={(val) => setColor(val.hex)}>
-                  <Panel1 style={{ borderRadius: 12 }} />
-                  <HueSlider />
-                </ColorPicker>
-              </View>
-              }
               <Pressable
                 style={{
                   width: 30,
                   height: 30,
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   borderRadius: 30,
-                  backgroundColor: color
                 }}
                 onPress={() => setColorPickerOpen(o => !o)}
-              />
+              >
+                <TextColorIcon size={24} color={color} />
+              </Pressable>
+              <View style={{ width: 1, height: 20, backgroundColor: colors.surface3 }} />
+              <Pressable
+                style={{
+                  width: 24,
+                  height: 24,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderCurve: 'continuous',
+                  borderRadius: 6,
+                  backgroundColor: backgroundTextColor ?? colors.surface3
+                }}
+                onPress={() => {
+                  if (bgColorPickerOpen) {
+                    setBgColorPickerOpen(false);
+                  } else if (backgroundTextColor) {
+                    setBackgroundTextColor(null);
+                  }
+                  else {
+                    bgColorOffsetX.value = 25;
+                    const newColor = interpolateColor(25, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
+                    setBackgroundTextColor(newColor);
+                    setBgColorPickerOpen(true);
+                  }
+                }}
+              >
+                <BackgroundIcon size={16} color={color} />
+                {/* <TextColorIcon size={24} color={color} /> */}
+              </Pressable>
               <View style={{ width: 1, height: 20, backgroundColor: colors.surface3 }} />
               <TextAlignContainer align={align} setAlign={setAlign} />
               <View style={{ width: 1, height: 20, backgroundColor: colors.surface3 }} />
@@ -431,10 +625,13 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
                 style={{
                   width: 40,
                   height: 40,
+                  flexDirection: 'row',
+                  gap: 2,
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
                 <KeyboardIcon size={24} color={colors.primaryText} />
+                <Ionicons name='arrow-down' size={16} color={colors.primaryText} />
               </Pressable>
             </View>
           </View>
@@ -443,13 +640,21 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       <View style={{ flex: 1, zIndex: 1, overflow: 'hidden', backgroundColor: colors.surface2 }}>
         {background && background.type === 'image' ? <Image style={{ position: 'absolute', zIndex: 0, left: 0, top: 0, right: 0, bottom: 0 }} source={{ uri: background.uri }} /> : <SvgBackground bgKey={background?.bgKey} />}
         {texts?.map(t => t.id !== focusedTextId && (
-          <MovableText key={t.id} text={t}
+          <MovableText
+            key={t.id}
+            text={t}
             onChange={handleUpdateText}
             onFocus={() => handleTextFocus(t.id)}
           />
         ))}
         {images?.map(img => (
-          <MovableImage key={img.id} image={img} onChange={handleUpdateImage} onFocus={handleImageFocus} />
+          <MovableImage
+            key={img.id}
+            image={img}
+            onChange={handleUpdateImage}
+            onFocus={handleImageFocus}
+            onDelete={handleDeleteImage}
+          />
         ))}
       </View>
       {overlaysShown && <View style={{
@@ -482,10 +687,11 @@ type MovableImageProps = {
   image: PageImageType;
   onChange: (i: PageImageType) => void;
   onFocus: (id: string) => void;
+  onDelete: (id: string) => void;
 };
 
 const MovableImage = (props: MovableImageProps) => {
-  const { image, onChange, onFocus } = props;
+  const { image, onChange, onFocus, onDelete } = props;
   const lastOffset = useSharedValue({ x: image.x, y: image.y });
   const offset = useSharedValue({ x: image.x, y: image.y });
   const lastScale = useSharedValue(image.scale);
@@ -493,18 +699,31 @@ const MovableImage = (props: MovableImageProps) => {
   const lastRotation = useSharedValue(image.rotate);
   const rotation = useSharedValue(image.rotate);
   const minSize = Math.min(image.width, image.height);
-  const colors = useThemeColor();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const animImageStyle = useAnimatedStyle(() => {
     return {
       width: image.width,
       height: image.height,
       position: 'absolute',
+      zIndex: image.z,
       transform: [
         { translateX: offset.value.x },
         { translateY: offset.value.y },
         { scale: imageScale.value },
         { rotate: `${rotation.value}deg` }
+      ],
+    };
+  });
+
+  const animContextStyle = useAnimatedStyle(() => {
+    return {
+      position: 'absolute',
+      zIndex: 100000,
+
+      transform: [
+        { translateX: offset.value.x },
+        { translateY: offset.value.y }
       ],
     };
   });
@@ -552,16 +771,23 @@ const MovableImage = (props: MovableImageProps) => {
     })
     .runOnJS(true);
 
-  const tapGesture = Gesture.Tap().onEnd(() => {
-    // onFocus(image.id);
-    if (image.shape === 'inherit') handleSetImageShape('square');
-    if (image.shape === 'square') handleSetImageShape('circle');
-    if (image.shape === 'circle') handleSetImageShape('heart');
-    if (image.shape === 'heart') handleSetImageShape('inherit');
-  }).runOnJS(true);
+  const tapGesture = Gesture.Tap()
+    .onEnd(() => {
+      if (image.shape === 'inherit') handleSetImageShape('square');
+      if (image.shape === 'square') handleSetImageShape('circle');
+      if (image.shape === 'circle') handleSetImageShape('heart');
+      if (image.shape === 'heart') handleSetImageShape('inherit');
+    })
+    .runOnJS(true);
+
+  const longPress = Gesture.LongPress()
+    .onStart(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setMenuOpen(true);
+    })
+    .runOnJS(true);
 
   const handleSetImageShape = (shape: ImageShape) => {
-    console.log('setting shape: ', shape);
     const t: PageImageType = {
       ...image,
       shape
@@ -572,6 +798,7 @@ const MovableImage = (props: MovableImageProps) => {
   // const composed = Gesture.Race(rotateGesture, tapGesture, dragGesture, pinchGesture);
   const composed = Gesture.Simultaneous(
     tapGesture,
+    longPress,
     Gesture.Simultaneous(dragGesture, pinchGesture, rotateGesture)
   );
 
@@ -600,29 +827,50 @@ const MovableImage = (props: MovableImageProps) => {
     onChange(t);
   };
 
+  const handleOptionSelect = (option: string) => {
+    if (option === 'Delete') {
+      onDelete(image.id);
+    }
+    setMenuOpen(false);
+  };
 
+  const colors = useThemeColor();
 
   return (
-    <GestureDetector gesture={composed}>
-      <Animated.View style={animImageStyle}>
-        <MaskedView
-          style={{ flex: 1, backgroundColor: 'transparent' }}
-          maskElement={
-            image.shape === 'heart'
-              ? <Ionicons name='heart' size={minSize} color='black' />
-              : image.shape === 'circle' ? <View style={{ width: minSize, height: minSize, backgroundColor: 'black', borderRadius: image.width }} />
-                : image.shape === 'square' ? <View style={{ width: minSize, height: minSize, backgroundColor: 'black', borderRadius: 0 }} />
-                  : <View style={{ width: image.width, height: image.height, backgroundColor: 'black' }}></View>
-          }
-        >
-          <Image
-            source={{ uri: image.uri }}
-            style={{ width: image.width, height: image.height }}
-            resizeMode='cover'
-          />
-        </MaskedView>
+    <>
+      <Animated.View style={animContextStyle}>
+        <ContextMenu
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          options={[
+            { name: 'Crop', color: colors.primaryText, icon: <CropIcon size={20} color={colors.primaryText} />, alignment: 'center' },
+            { name: 'Delete', color: colors.danger, icon: <TrashIcon size={20} color={colors.danger} />, alignment: 'center' },
+          ]}
+          selected={''}
+          onSelect={handleOptionSelect}
+        />
       </Animated.View>
-    </GestureDetector>
+      <GestureDetector gesture={composed}>
+        <Animated.View style={animImageStyle}>
+          <MaskedView
+            style={{ flex: 1, backgroundColor: 'transparent' }}
+            maskElement={
+              image.shape === 'heart'
+                ? <Ionicons name='heart' size={minSize} color='black' />
+                : image.shape === 'circle' ? <View style={{ width: minSize, height: minSize, backgroundColor: 'black', borderRadius: image.width }} />
+                  : image.shape === 'square' ? <View style={{ width: minSize, height: minSize, backgroundColor: 'black', borderRadius: 0 }} />
+                    : <View style={{ width: image.width, height: image.height, backgroundColor: 'black' }}></View>
+            }
+          >
+            <Image
+              source={{ uri: image.uri }}
+              style={{ width: image.width, height: image.height }}
+              resizeMode='cover'
+            />
+          </MaskedView>
+        </Animated.View>
+      </GestureDetector>
+    </>
   );
 };
 
@@ -760,14 +1008,27 @@ const MovableText = ({ text, onChange, onFocus }: {
   const fontSize = useSharedValue(text.size);
   const lastRotation = useSharedValue(text.rotate);
   const rotation = useSharedValue(text.rotate);
-  const containerSize = useSharedValue({ width: 0, height: 40 });
+  const containerSize = useSharedValue({ width: text.width, height: 40 });
+  const isSnapped = useSharedValue(false);
 
   const rotateGesture = Gesture.Rotation()
     .onStart(() => {
       lastRotation.value = rotation.value;
     })
     .onUpdate((e) => {
-      rotation.value = lastRotation.value + e.rotation * 180 / Math.PI;
+      if (e.rotation > -0.04 && e.rotation < 0.04) {
+        if (!isSnapped.value) {
+          isSnapped.value = true;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+        rotation.value = 0;
+      } else if (e.rotation < -0.04 || e.rotation > 0.04) {
+        isSnapped.value = false;
+        rotation.value = lastRotation.value + e.rotation * 180 / Math.PI;
+      }
+      else {
+        rotation.value = lastRotation.value + e.rotation * 180 / Math.PI;
+      }
     })
     .onEnd(() => {
       handleSetRotation(rotation.value);
@@ -852,15 +1113,16 @@ const MovableText = ({ text, onChange, onFocus }: {
         { scale: textScale.value },
         { rotate: `${rotation.value}deg` }
       ],
-      borderWidth: 1,
-      borderColor: colors.secondaryText,
-      width: containerSize.value.width,
-      height: containerSize.value.height,
-      paddingVertical: 10,
-      paddingHorizontal: 15,
+      // borderWidth: 1,
+      // borderColor: colors.secondaryText,
+      // width: containerSize.value.width,
+      backgroundColor: text.backgroundColor ?? 'transparent',
+      flexShrink: 1,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
       zIndex: text.z,
+      position: 'absolute',
       textAlign: text.align,
-      fontSize: text.size,
       color: text.color,
     };
   });
@@ -900,21 +1162,29 @@ const MovableText = ({ text, onChange, onFocus }: {
   return (
     <>
       <GestureDetector gesture={composed}>
-        <Animated.Text
-          onLayout={(e) => {
-            containerSize.value = {
-              width: e.nativeEvent.layout.width,
-              height: e.nativeEvent.layout.height
-            };
-          }}
-          style={[animStyle, { fontFamily: text.font }]}
-        >
-          {text.body}
-        </Animated.Text>
+        <Animated.View style={animStyle}>
+          <Text
+            // onLayout={(e) => {
+            //   containerSize.value = {
+            //     width: e.nativeEvent.layout.width,
+            //     height: e.nativeEvent.layout.height
+            //   };
+            // }}
+            style={{
+              fontFamily: text.font,
+              fontSize: text.size,
+              textAlign: text.align,
+              color: text.color,
+              flexShrink: 1
+            }}
+          >
+            {text.body}
+          </Text>
+        </Animated.View>
       </GestureDetector>
-      <GestureDetector gesture={grabGesture}>
+      {/* <GestureDetector gesture={grabGesture}>
         <Animated.View style={animGrabberStyle} />
-      </GestureDetector>
+      </GestureDetector> */}
     </>
   );
 };

@@ -1,30 +1,28 @@
 import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons, Feather, AntDesign } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Diary, Page, ScreenProps, UseNavigationType } from '../types';
+import { ContextMenuOption, Diary, Page, ScreenProps, UseNavigationType } from '../types';
 import { Container, Text, useThemeColor } from '../Theme/Themed';
 import Header from '../Components/Header';
 import ChevronDownIcon from '../../assets/icons/ChevronDownIcon';
 import MenuButton from '../Components/MenuButton';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import defaultStore from '../Stores/defaultStore';
-import { apiGetDiary, apiListDiaries } from '../Utils/utilFns';
+import { apiFetchDiaries, apiGetDiary, apiListCommunityPages, apiListDiaries, getActiveDiary } from '../Utils/utilFns';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const temp = [
-  { id: 1, title: 'Page 1', content: 'This is page 1' },
-  { id: 2, title: 'Page 2', content: 'This is page 2' },
-  { id: 3, title: 'Page 3', content: 'This is page 3' },
-  { id: 4, title: 'Page 4', content: 'This is page 4' },
-  { id: 5, title: 'Page 5', content: 'This is page 5' },
-];
+import ContextMenu from '../Components/ContextMenu';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import PlusIcon from '../../assets/icons/PlusIcon';
+import PlusCircleIcon from '../../assets/icons/PlusCircleIcon';
+import HeartIcon from '../../assets/icons/HeartIcon';
 
 const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
   const user = defaultStore(state => state.user);
   if (!user) return null;
-  const activeDiaryId = defaultStore(state => state.activeDiaryId);
-  const { data, isLoading } = useQuery({ queryKey: ['diary', activeDiaryId], queryFn: () => apiGetDiary(activeDiaryId) });
+  const { top, bottom } = useSafeAreaInsets();
+  const { data: diary, isLoading } = useQuery({ queryKey: ['activeDiary'], queryFn: () => getActiveDiary(user.id) });
+  const { data: communityDiary, isLoading: isLoadingCommunityDiary } = useQuery({ queryKey: ['community'], queryFn: apiListCommunityPages });
   const { width, height } = Dimensions.get('window');
   const cellWidth = (width - 40) / 2;
   const colors = useThemeColor();
@@ -34,11 +32,13 @@ const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
       <Header
         headerLeft={<HeaderDropDown />}
         headerRight={<MenuButton />}
+        style={{ zIndex: 100 }}
       />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingTop: 16,
+          minHeight: height - top - 55,
           paddingBottom: 100
         }}
       >
@@ -46,25 +46,33 @@ const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
           paddingHorizontal: 13,
           columnGap: 5,
           rowGap: 5,
+          flex: 1,
           flexDirection: 'row',
           width: '100%', flexWrap: 'wrap'
         }}>
-          {temp?.map(t => (
-            <Pressable
-              style={{
-                width: cellWidth,
-                height: cellWidth * (9 / 6),
-                margin: 2,
-                backgroundColor: colors.surface2,
-                borderRadius: 6,
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              key={t.id}
-            >
-              <Text type='h3'>{t.title}</Text>
-            </Pressable>
-          ))}
+          {diary && diary.pages && diary?.pages?.length > 0 ?
+            diary.pages.map(p => p && (
+              <Pressable
+                onPress={() => navigation.navigate('Page', { page: p, diary: diary })}
+                style={{
+                  width: cellWidth,
+                  height: cellWidth * (9 / 6),
+                  margin: 2,
+                  backgroundColor: colors.surface2,
+                  borderRadius: 6,
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                key={p.id}
+              >
+                <Text type='h3'>{p.title}</Text>
+              </Pressable>
+            )) :
+            <View style={{ flex: 1, gap: 8, alignItems: 'center', justifyContent: 'center', paddingBottom: 100 }}>
+              <Text type='h2'>This diary is empty</Text>
+              <Text type='p'>Click the plus button to create a new page</Text>
+            </View>
+          }
         </View>
       </ScrollView>
       <NewPageButton />
@@ -103,27 +111,95 @@ const NewPageButton = () => {
 };
 
 const HeaderDropDown = () => {
-  const [diaries, setDiaries] = useState<Diary[]>([]);
   const colors = useThemeColor();
+  const user = defaultStore(state => state.user);
+  const navigation = useNavigation<UseNavigationType>();
+  if (!user) return null;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { data: diaries, isLoading } = useQuery({ queryKey: ['diaries'], queryFn: () => apiFetchDiaries(user.id) });
+  const { data: activeDiary, isLoading: isLoadingActiveDiary } = useQuery({ queryKey: ['activeDiary'], queryFn: () => getActiveDiary(user.id) });
+  const queryClient = useQueryClient();
+  const showCommunity = defaultStore(state => state.showCommunity);
+  const setShowCommunity = defaultStore(state => state.setShowCommunity);
 
-  const handlePress = () => {
+  const handleOptionPress = (option: string) => {
+    setMenuOpen(false);
+    if (option === 'Create') {
+      //check if user has account yet
+      return;
+    }
+    if (option === 'Community') {
+      //check if user has account yet
+      setShowCommunity(true);
+      return;
+    }
 
+    setShowCommunity(false);
+    const diaryId = diaries?.find(d => d.title === option)?.id;
+    if (!diaryId) return;
+    AsyncStorage.setItem('activeDiaryId', diaryId);
+    queryClient.setQueryData(['activeDiary'], diaries?.find(d => d.id === diaryId));
   };
 
+  const options: ContextMenuOption[] = [
+    ...diaries?.map(d => ({
+      name: d.title,
+      icon: <View style={{ width: 20, height: 20, borderRadius: 4, backgroundColor: d.backgroundColor }} />,
+      color: colors.primaryText,
+      alignment: 'list-item'
+    } as ContextMenuOption)) ?? [],
+    {
+      name: 'Community',
+      color: colors.primaryText,
+      icon: <View style={{
+        width: 20, height: 20, alignItems: 'center', justifyContent: 'center',
+        borderRadius: 4,
+        // backgroundColor: colors.secondary
+      }} >
+        <HeartIcon size={20} color={colors.primary} />
+      </View>,
+      alignment: 'list-item'
+    },
+    // {
+    //   name: 'New Diary',
+    //   color: colors.primary,
+    //   icon: <PlusIcon size={20} color={colors.primary} />,
+    //   alignment: 'center'
+    // }
+  ];
+
+  if (isLoading || isLoadingActiveDiary) return null;
+
   return (
-    <Pressable
-      onPress={handlePress}
-      style={{
-        paddingHorizontal: 20,
-        flexDirection: 'row',
-        height: '100%',
-        alignItems: 'center',
-        gap: 8
-      }}
-    >
-      <Text type='h1'>Diary 1</Text>
-      <Ionicons name="chevron-down" size={24} color="black" />
-    </Pressable>
+    <View style={{
+      height: '100%',
+    }}>
+      <Pressable
+        onPress={() => setMenuOpen(!menuOpen)}
+        style={{
+          paddingHorizontal: 20,
+          flexDirection: 'row',
+          height: '100%',
+          alignItems: 'center',
+          gap: 6
+        }}
+      >
+        <Text type='h1'>{showCommunity ? 'Community' : activeDiary?.title}</Text>
+        <ChevronDownIcon size={24} color={colors.primaryText} />
+      </Pressable>
+      {diaries && <ContextMenu
+        offsetX={110}
+        offsetY={90}
+        style={{ marginTop: -35, marginLeft: -95 }}
+        anchor={'top-left'}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        options={options}
+        selected={showCommunity ? 'Community' : activeDiary?.title ?? ''}
+        onSelect={handleOptionPress}
+      />
+      }
+    </View>
   );
 };
 
