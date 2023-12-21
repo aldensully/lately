@@ -26,33 +26,34 @@ type Props = {
   id: string;
   username?: string;
   size?: keyof typeof Sizes;
+  url?: string | undefined;
   style?: ImageStyle;
 };
 
 const Thumbnail = (props: Props) => {
-  const { id, username, style, size = 'md' } = props;
+  const { id, username, style, size = 'md', url } = props;
   const viewSize = Sizes[size];
   const colors = useThemeColor();
-  const { data, isLoading } = useQuery({ queryKey: ['thumbnail', id], queryFn: () => apiFetchStorageUrl(id) });
+  // const { data, isLoading } = useQuery({ queryKey: ['thumbnail', id], queryFn: () => apiFetchStorageUrl(id) });
 
-  if (!data || isLoading) return (
-    <View style={[{
-      width: viewSize,
-      height: viewSize,
-      borderRadius: viewSize,
-      backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center'
-    }, style]}>
-      {username && <Text
-        type='h3'
-        style={{ fontFamily: 'SingleDay', fontSize: TextSizes[size] }}
-        color={colors.secondaryText}>{username[0]}</Text>
-      }
-    </View>
-  );
+  // if (!data || isLoading) return (
+  //   <View style={[{
+  //     width: viewSize,
+  //     height: viewSize,
+  //     borderRadius: viewSize,
+  //     backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center'
+  //   }, style]}>
+  //     {username && <Text
+  //       type='h3'
+  //       style={{ fontFamily: 'SingleDay', fontSize: TextSizes[size] }}
+  //       color={colors.secondaryText}>{username[0]}</Text>
+  //     }
+  //   </View>
+  // );
   return (
     Platform.OS === 'ios' ?
       <ExpoImage
-        source={{ uri: data }}
+        source={{ uri: url }}
         style={[{
           width: viewSize,
           height: viewSize,
@@ -62,7 +63,7 @@ const Thumbnail = (props: Props) => {
       />
       :
       <Image
-        source={{ uri: data }}
+        source={{ uri: url }}
         style={[{
           width: viewSize,
           height: viewSize,

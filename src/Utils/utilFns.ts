@@ -276,7 +276,7 @@ export async function resizeImage(width: number, height: number, uri: string) {
   }
 }
 
-async function uriToBlob(fileUri: string) {
+export async function uriToBlob(fileUri: string) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.onload = function () {
@@ -290,4 +290,13 @@ async function uriToBlob(fileUri: string) {
     xhr.send(null);
   }) as Promise<Blob>;
 }
-
+export async function blobToBase64(blob: Blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve(reader.result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};

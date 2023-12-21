@@ -84,18 +84,8 @@ const UserSection = () => {
   const hasAccount = defaultStore(state => state.hasAccount);
   const navigation = useNavigation<UseNavigationType>();
 
-  const handlePress = () => {
-    if (hasAccount) {
-      //navigate to update profile modal
-    } else {
-      navigation.navigate('SignUpOptionsScreen');
-      //navigate to create profile modal
-    }
-  };
-
   return (
     <ThemeView
-      onPress={handlePress}
       style={{
         width: '100%',
         backgroundColor: colors.surface2,
@@ -105,20 +95,17 @@ const UserSection = () => {
         flexDirection: 'row',
         alignItems: 'center'
       }}>
-      {hasAccount ?
-        <>
-          <Thumbnail
-            username={user?.username}
-            id={user?.id ?? ''}
-            size='lg'
-          />
-          <View style={{ marginLeft: 12 }}>
-            <Text type='h2'>{user?.username}</Text>
-            <Text color={colors.secondaryText} type='p'>Joined {user?.creation_date}</Text>
-          </View>
-        </>
-        :
-        <View style={{ width: '100%', gap: 4, }}>
+      <Thumbnail
+        username={user?.username}
+        id={user?.id ?? ''}
+        size='lg'
+        url={user?.thumbnail}
+      />
+      <View style={{ marginLeft: 12, gap: 4 }}>
+        <Text type='h3'>{user?.username}</Text>
+        <Text color={colors.secondaryText} type='sm'>Joined {user?.creation_date.split(' ')[0]}</Text>
+      </View>
+      {/* <View style={{ width: '100%', gap: 4, }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <View style={{ width: 32, height: 32, borderRadius: 14, backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center' }}>
               <UserFillIcon size={16} color={colors.secondaryText} />
@@ -129,8 +116,7 @@ const UserSection = () => {
             <Text color={colors.primary} style={{ maxWidth: '80%' }} type='sm'>Create an account to backup your diaries</Text>
             <ChevronRightIcon size={16} color={colors.primaryText} />
           </View>
-        </View>
-      }
+        </View> */}
     </ThemeView>
   );
 };
@@ -210,11 +196,7 @@ const GeneralSection = () => {
 
 const DangerSection = () => {
   const colors = useThemeColor();
-  const user = defaultStore(state => state.user);
-  const hasAccount = defaultStore(state => state.hasAccount);
   const authUser = auth.currentUser;
-
-  if (!hasAccount) return <></>;
 
   const items = [
     {

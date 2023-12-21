@@ -33,32 +33,17 @@ const AuthProvider = ({ children }: any) => {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
+      console.log('auth state changed', u);
       if (u) {
-        setHasAccount(true);
         const dbUser = await getDbUser(u.uid);
         if (dbUser) {
           setUser(dbUser);
-
-          const hasDiary = await userHasDiary(dbUser.id);
-          if (hasDiary) handleNavigation('Main');
-          else handleNavigation('CreateFirstDiaryScreen');
+          navigationRef?.navigate('Main');
         } else {
           handleNavigation('EditProfileScreen');
         }
       } else {
         navigationRef?.navigate('Welcome');
-        // setHasAccount(false);
-        // console.log('no auth user, checking for local user');
-        // const res = await AsyncStorage.getItem('user');
-        // if (res === null) {
-        //   handleNavigation('OnboardingTheme');
-        //   setUser(null);
-        // } else {
-        //   console.log('found local user');
-        //   const usr = JSON.parse(res);
-        //   setUser(usr);
-        //   handleNavigation('Main');
-        // }
       }
       setLoadingUser(false);
     });

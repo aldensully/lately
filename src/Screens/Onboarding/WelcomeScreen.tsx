@@ -165,7 +165,7 @@ const WelcomeScreen = ({ navigation, route }: ScreenProps<'Welcome'>) => {
       alignItems: 'center',
       gap: 48,
       justifyContent: 'center',
-      top: '25%'
+      top: '20%'
     };
   });
 
@@ -219,22 +219,22 @@ const WelcomeScreen = ({ navigation, route }: ScreenProps<'Welcome'>) => {
         <Animated.View
           style={animText1Style}
         >
-          <Text style={{ textAlign: 'center' }} type='h2'>
-            Welcome to <Text type='h2' color={colors.primary}>Lately</Text>, {"your new\n personal journal"}
+          <Text style={{ textAlign: 'center' }} type='h1'>
+            Welcome to <Text type='h1' color={colors.primary}>Lately</Text>, {"your new\n personal journal"}
           </Text>
         </Animated.View>
         <Animated.View
           style={animText2Style}
         >
-          <Text style={{ textAlign: 'center' }} type='h2'>
+          <Text style={{ textAlign: 'center' }} type='h1'>
             Record your thoughts, feelings, memories, and ideas in a fun and creative way
           </Text>
         </Animated.View>
         <Animated.View
           style={animText3Style}
         >
-          <Text style={{ textAlign: 'center' }} type='h2'>
-            Each page can be fully customized with words, images, stickers, music & more
+          <Text style={{ textAlign: 'center' }} type='h1'>
+            Each page can be fully customized with words, images, stickers, music & more!
           </Text>
           <Image
             source={require('../../../assets/images/scrap3.png')}
@@ -244,7 +244,7 @@ const WelcomeScreen = ({ navigation, route }: ScreenProps<'Welcome'>) => {
         <Animated.View
           style={animText4Style}
         >
-          <Text style={{ textAlign: 'center' }} type='h2'>
+          <Text style={{ textAlign: 'center' }} type='h1'>
             Or use templates to get started quickly
           </Text>
           <Image
@@ -255,7 +255,7 @@ const WelcomeScreen = ({ navigation, route }: ScreenProps<'Welcome'>) => {
         <Animated.View
           style={animText5Style}
         >
-          <Text style={{ textAlign: 'center' }} type='h2'>
+          <Text style={{ textAlign: 'center' }} type='h1'>
             Share your pages in the community and find inspo from other creators
           </Text>
           <Image
@@ -274,15 +274,15 @@ const WelcomeScreen = ({ navigation, route }: ScreenProps<'Welcome'>) => {
           {showBack && <Pressable
             onPress={() => setAnimStep(a => a - 1)}
             style={{ width: '30%', justifyContent: 'center', height: 50, gap: 5, flexDirection: 'row', alignItems: 'center' }}>
-            <ArrowLeftIcon size={18} color={'#6D6D6D'} />
-            <Text type='h2' color={'#6D6D6D'}>Back</Text>
+            <ArrowLeftIcon size={20} color={'#6D6D6D'} />
+            <Text type='h1' color={'#6D6D6D'}>Back</Text>
           </Pressable>
           }
           <Pressable
             onPress={() => setAnimStep(a => a + 1)}
             style={{ width: '30%', gap: 5, height: 50, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
-            <Text type='h2' color={colors.primary}>Next</Text>
-            <ArrowRightIcon size={18} color={colors.primary} />
+            <Text type='h1' color={colors.primary}>Next</Text>
+            <ArrowRightIcon size={20} color={colors.primary} />
           </Pressable>
         </Animated.View>
         }

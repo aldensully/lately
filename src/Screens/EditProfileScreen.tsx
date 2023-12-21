@@ -1,7 +1,7 @@
 import { Alert, Dimensions, Image, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Camera, CameraType } from 'expo-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,9 +39,14 @@ const EditProfileScreen = ({ navigation, route }: ScreenProps<'EditProfileScreen
   const [cameraPermission, requestCameraPermission] = Camera.useCameraPermissions();
 
   const handleNext = async () => {
+    const authUser = auth.currentUser;
+    if (!authUser) {
+      Alert.alert("Something went wrong. Please try again.");
+      return;
+    };
     const finalUsername = username.length === 0 ? generateUsername() : username;
     const input: User = {
-      id: generateUUID(),
+      id: authUser.uid,
       username: finalUsername,
       creation_date: getCurrentDateTimeInUTC()
     };
@@ -101,6 +106,7 @@ const EditProfileScreen = ({ navigation, route }: ScreenProps<'EditProfileScreen
     setCameraOpen(true);
   };
 
+  const placeholderUsername = useMemo(() => generateUsername(), []);
 
   const { bottom } = useSafeAreaInsets();
 
@@ -165,8 +171,8 @@ const EditProfileScreen = ({ navigation, route }: ScreenProps<'EditProfileScreen
         </View>
       </Modal>
       <View style={{ flex: 1, gap: 32, paddingTop: 48, alignItems: 'center' }}>
-        <View style={{ gap: 8 }}>
-          <Text type='h2' style={{ textAlign: 'center', fontSize: 28 }}>Edit Profile</Text>
+        <View style={{ alignItems: 'center', gap: 8 }}>
+          <Text type='h2' style={{ textAlign: 'center', fontSize: 28 }}>Customize Profile</Text>
           <Text color={colors.secondaryText} type='sm' >You can always change this later</Text>
         </View>
         <Pressable
@@ -227,7 +233,7 @@ const EditProfileScreen = ({ navigation, route }: ScreenProps<'EditProfileScreen
           <TextInput
             value={username}
             onChangeText={setUsername}
-            placeholder={generateUsername()}
+            placeholder={placeholderUsername}
             maxLength={15}
             numberOfLines={1}
             allowFontScaling={false}
@@ -257,7 +263,11 @@ const EditProfileScreen = ({ navigation, route }: ScreenProps<'EditProfileScreen
         type='primary'
         onPress={handleNext}
         loading={loading}
-        style={{ marginBottom: 32, width: 180, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+        style={{
+          marginBottom: 32,
+          height: 55,
+          width: 180, flexDirection: 'row', alignItems: 'center', gap: 6
+        }}
       >
         <>
           <Text type='h1' color={colors.primary}>Next</Text>

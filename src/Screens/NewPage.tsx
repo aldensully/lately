@@ -14,7 +14,7 @@ import BackgroundIcon from '../../assets/icons/BackgroundIcon';
 import TextIcon from '../../assets/icons/TextIcon';
 import ImageIcon from '../../assets/icons/ImageIcon';
 import BrushIcon from '../../assets/icons/BrushIcon';
-import { apiCreatePage, apiListDiaries, generateUUID, getActiveDiary } from '../Utils/utilFns';
+import { apiCreatePage, apiListDiaries, blobToBase64, generateUUID, getActiveDiary, uriToBlob } from '../Utils/utilFns';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import AlignLeftIcon from '../../assets/icons/AlignLeftIcon';
@@ -37,6 +37,7 @@ import { useTheme } from '@react-navigation/native';
 import CropIcon from '../../assets/icons/CropIcon';
 import TrashIcon from '../../assets/icons/TrashIcon';
 import { query } from 'firebase/firestore';
+import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
 
 const DoneButton = ({ onPress }: { onPress: () => void; }) => {
@@ -246,20 +247,27 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       const result = await ImagePicker.launchImageLibraryAsync({
         // mediaTypes: ImagePicker.MediaTypeOptions.Images,
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: false,
-        quality: 0.1
+        allowsMultipleSelection: false
       });
       if (result.canceled) {
         return;
       }
 
-      Image.getSize(result.assets[0].uri, (w, h) => {
+      const manipResult = await manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 400 } }],
+        { format: SaveFormat.PNG, compress: 0.4 }
+      );
+
+      if (!manipResult.uri) return;
+
+      Image.getSize(manipResult.uri, (w, h) => {
         const aspectRatio = w / h;
         const newWidth = 200;
         const newHeight = newWidth / aspectRatio;
         const i: PageImageType = {
           id: generateUUID(),
-          uri: result.assets[0].uri,
+          uri: manipResult.uri,
           x: width / 4,
           y: height / 4,
           z: maxZ,
@@ -303,7 +311,6 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       return text;
     });
     setTexts(newT);
-    setMaxZ(z => z + 1);
   };
 
   const handleTextFocus = (id: string) => {
@@ -323,12 +330,52 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const handleUpdateImage = (i: PageImageType) => {
     setImages(images.map(img => {
       if (img.id === i.id) {
-        return { ...i, z: maxZ };
+        return { ...i };
       }
       return img;
     }));
+  };
+
+  const bringImageToFront = (imageId: string) => {
+    setImages(imgs => imgs.map(i => {
+      if (i.id === imageId) {
+        return { ...i, z: maxZ };
+      }
+      return i;
+    }));
     setMaxZ(z => z + 1);
   };
+
+  const bringTextToFront = (textId: string) => {
+    setTexts(texts => texts.map(t => {
+      if (t.id === textId) {
+        return { ...t, z: maxZ };
+      }
+      return t;
+    }));
+    setMaxZ(z => z + 1);
+  };
+
+  const sendTextToBack = (textId: string) => {
+    setTexts(texts => texts.map(t => {
+      if (t.id === textId) {
+        return { ...t, z: 1 };
+      }
+      return { ...t, z: t.z + 1 };
+    }));
+    setImages(imgs => imgs.map(i => ({ ...i, z: i.z + 1 })));
+  };
+
+  const sendImageToBack = (imageId: string) => {
+    setImages(imgs => imgs.map(i => {
+      if (i.id === imageId) {
+        return { ...i, z: 1 };
+      }
+      return { ...i, z: i.z + 1 };
+    }));
+    setTexts(texts => texts.map(t => ({ ...t, z: t.z + 1 })));
+  };
+
 
   const [loading, setLoading] = useState(false);
 
@@ -357,8 +404,6 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     };
 
     createPageMutation.mutate(page);
-
-    Alert.alert("Your page was saved!");
 
     navigation.goBack();
   };
@@ -432,6 +477,10 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
 
   const handleDeleteImage = (id: string) => {
     setImages(images.filter(i => i.id !== id));
+  };
+
+  const handleDeleteText = (id: string) => {
+    setTexts(texts.filter(t => t.id !== id));
   };
 
 
@@ -644,7 +693,10 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
             key={t.id}
             text={t}
             onChange={handleUpdateText}
+            onDelete={handleDeleteText}
             onFocus={() => handleTextFocus(t.id)}
+            onBringTextToFront={bringTextToFront}
+            onSendTextToBack={sendTextToBack}
           />
         ))}
         {images?.map(img => (
@@ -654,6 +706,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
             onChange={handleUpdateImage}
             onFocus={handleImageFocus}
             onDelete={handleDeleteImage}
+            onBringImageToFront={bringImageToFront}
+            onSendImageToBack={sendImageToBack}
           />
         ))}
       </View>
@@ -688,10 +742,12 @@ type MovableImageProps = {
   onChange: (i: PageImageType) => void;
   onFocus: (id: string) => void;
   onDelete: (id: string) => void;
+  onBringImageToFront: (id: string) => void;
+  onSendImageToBack: (id: string) => void;
 };
 
 const MovableImage = (props: MovableImageProps) => {
-  const { image, onChange, onFocus, onDelete } = props;
+  const { image, onChange, onFocus, onDelete, onBringImageToFront, onSendImageToBack } = props;
   const lastOffset = useSharedValue({ x: image.x, y: image.y });
   const offset = useSharedValue({ x: image.x, y: image.y });
   const lastScale = useSharedValue(image.scale);
@@ -775,8 +831,8 @@ const MovableImage = (props: MovableImageProps) => {
     .onEnd(() => {
       if (image.shape === 'inherit') handleSetImageShape('square');
       if (image.shape === 'square') handleSetImageShape('circle');
-      if (image.shape === 'circle') handleSetImageShape('heart');
-      if (image.shape === 'heart') handleSetImageShape('inherit');
+      if (image.shape === 'circle') handleSetImageShape('inherit');
+      // if (image.shape === 'heart') handleSetImageShape('inherit');
     })
     .runOnJS(true);
 
@@ -827,9 +883,58 @@ const MovableImage = (props: MovableImageProps) => {
     onChange(t);
   };
 
-  const handleOptionSelect = (option: string) => {
+  const handleOptionSelect = async (option: string) => {
     if (option === 'Delete') {
       onDelete(image.id);
+    }
+    if (option === 'Bring To Front') {
+      onBringImageToFront(image.id);
+    }
+    if (option === 'Send To Back') {
+      onSendImageToBack(image.id);
+    }
+    if (option === 'Remove Background') {
+      const apiKey = 'r8_cqA8gRrmhMkWcJHzBYYQZorrj1RTbZF3tDUs6';
+      const blob = await uriToBlob(image.uri);
+      const base64 = await blobToBase64(blob);
+
+      const getUrl = await fetch('https://api.replicate.com/v1/predictions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${apiKey}`
+        },
+        body: JSON.stringify({
+          version: 'fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003',
+          input: { image: base64 }
+        })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.error == null && data.status == 'starting') {
+            return data.urls.get;
+          }
+          return null;
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          return null;
+        });
+
+      if (getUrl) {
+        pollUrl(getUrl)
+          .then((dataUrl: string | null | undefined) => {
+            if (!dataUrl) return;
+            const t: PageImageType = {
+              ...image,
+              uri: dataUrl
+            };
+            onChange(t);
+          })
+          .catch(error => console.error('Polling error:', error));
+      } else {
+        console.log('Error getting url');
+      }
     }
     setMenuOpen(false);
   };
@@ -844,6 +949,9 @@ const MovableImage = (props: MovableImageProps) => {
           onClose={() => setMenuOpen(false)}
           options={[
             { name: 'Crop', color: colors.primaryText, icon: <CropIcon size={20} color={colors.primaryText} />, alignment: 'center' },
+            { name: 'Remove Background', color: colors.primaryText, icon: <CropIcon size={20} color={colors.primaryText} />, alignment: 'center' },
+            { name: 'Send To Back', color: colors.primaryText, icon: <CropIcon size={20} color={colors.primaryText} />, alignment: 'center' },
+            { name: 'Bring To Front', color: colors.primaryText, icon: <CropIcon size={20} color={colors.primaryText} />, alignment: 'center' },
             { name: 'Delete', color: colors.danger, icon: <TrashIcon size={20} color={colors.danger} />, alignment: 'center' },
           ]}
           selected={''}
@@ -874,6 +982,31 @@ const MovableImage = (props: MovableImageProps) => {
   );
 };
 
+const pollUrl = async (url: string, timeout = 10000, interval = 500): Promise<string | null | undefined> => {
+  const startTime = Date.now();
+  const apiKey = 'r8_cqA8gRrmhMkWcJHzBYYQZorrj1RTbZF3tDUs6';
+
+  const poll = async (resolve: any, reject: any) => {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${apiKey}`
+      }
+    });
+    const data = await response.json();
+
+    if (data.status === 'succeeded') {
+      resolve(data.output);
+    } else if (Date.now() - startTime >= timeout) {
+      reject(new Error('Polling timed out'));
+    } else {
+      setTimeout(() => poll(resolve, reject), interval);
+    }
+  };
+
+  return new Promise(poll);
+};
 
 const TextAlignContainer = ({ align, setAlign }: { align: 'left' | 'center' | 'right', setAlign: (align: 'left' | 'center' | 'right') => void; }) => {
   const colors = useThemeColor();
@@ -994,10 +1127,13 @@ const FontStyleContainer = (props: FontStyleContainerProps) => {
   );
 };
 
-const MovableText = ({ text, onChange, onFocus }: {
+const MovableText = ({ text, onChange, onFocus, onBringTextToFront, onSendTextToBack, onDelete }: {
   text: PageTextType;
   onChange: (t: PageTextType) => void;
   onFocus: () => void;
+  onBringTextToFront: (id: string) => void;
+  onSendTextToBack: (id: string) => void;
+  onDelete: (id: string) => void;
 }) => {
   const start = useSharedValue({ x: text.x, y: text.y });
   const offset = useSharedValue({ x: text.x, y: text.y });
@@ -1010,6 +1146,8 @@ const MovableText = ({ text, onChange, onFocus }: {
   const rotation = useSharedValue(text.rotate);
   const containerSize = useSharedValue({ width: text.width, height: 40 });
   const isSnapped = useSharedValue(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const colors = useThemeColor();
 
   const rotateGesture = Gesture.Rotation()
     .onStart(() => {
@@ -1034,6 +1172,14 @@ const MovableText = ({ text, onChange, onFocus }: {
       handleSetRotation(rotation.value);
     })
     .runOnJS(true);
+
+  const longPress = Gesture.LongPress()
+    .onStart(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setMenuOpen(true);
+    })
+    .runOnJS(true);
+
 
   const pinchGesture = Gesture.Pinch()
     .onStart((ctx) => {
@@ -1074,7 +1220,7 @@ const MovableText = ({ text, onChange, onFocus }: {
 
   // const composed = Gesture.Race(rotateGesture, tapGesture, dragGesture, pinchGesture);
   const composed = Gesture.Simultaneous(
-    tapGesture,
+    longPress,
     Gesture.Simultaneous(dragGesture, pinchGesture, rotateGesture)
   );
 
@@ -1103,7 +1249,33 @@ const MovableText = ({ text, onChange, onFocus }: {
     onChange(t);
   };
 
-  const colors = useThemeColor();
+  const handleOptionSelect = async (option: string) => {
+    if (option === 'Delete') {
+      onDelete(text.id);
+    }
+    if (option === 'Bring To Front') {
+      onBringTextToFront(text.id);
+    }
+    if (option === 'Send To Back') {
+      onSendTextToBack(text.id);
+    }
+    if (option === 'Edit') {
+      onFocus();
+    }
+    setMenuOpen(false);
+  };
+
+  const animContextStyle = useAnimatedStyle(() => {
+    return {
+      position: 'absolute',
+      zIndex: 100000,
+
+      transform: [
+        { translateX: offset.value.x },
+        { translateY: offset.value.y }
+      ],
+    };
+  });
 
   const animStyle = useAnimatedStyle(() => {
     return {
@@ -1113,9 +1285,6 @@ const MovableText = ({ text, onChange, onFocus }: {
         { scale: textScale.value },
         { rotate: `${rotation.value}deg` }
       ],
-      // borderWidth: 1,
-      // borderColor: colors.secondaryText,
-      // width: containerSize.value.width,
       backgroundColor: text.backgroundColor ?? 'transparent',
       flexShrink: 1,
       paddingVertical: 6,
@@ -1127,49 +1296,25 @@ const MovableText = ({ text, onChange, onFocus }: {
     };
   });
 
-  const animGrabberStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: offset.value.x + (containerSize.value.width * textScale.value) },
-        { translateY: offset.value.y + (containerSize.value.height / 2 * textScale.value) / 2 - 24 },
-      ],
-      zIndex: 1000,
-      width: 20,
-      height: 20,
-      backgroundColor: 'pink',
-      borderRadius: 20
-    };
-  });
-
-  const grabGesture = Gesture.Pan()
-    .onUpdate((e) => {
-      grabberOffset.value = {
-        x: e.translationX + grabberStart.value.x,
-        y: e.translationY + grabberStart.value.y,
-      };
-      containerSize.value = {
-        width: grabberOffset.value.x - offset.value.x,
-        height: grabberOffset.value.y - offset.value.y,
-      };
-    })
-    .onEnd(() => {
-      grabberStart.value = {
-        x: grabberOffset.value.x,
-        y: grabberOffset.value.y,
-      };
-    });
-
   return (
     <>
+      <Animated.View style={animContextStyle}>
+        <ContextMenu
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          options={[
+            { name: 'Send To Back', color: colors.primaryText, icon: <CropIcon size={20} color={colors.primaryText} />, alignment: 'center' },
+            { name: 'Bring To Front', color: colors.primaryText, icon: <CropIcon size={20} color={colors.primaryText} />, alignment: 'center' },
+            { name: 'Edit', color: colors.primaryText, icon: <CropIcon size={20} color={colors.primaryText} />, alignment: 'center' },
+            { name: 'Delete', color: colors.danger, icon: <TrashIcon size={20} color={colors.danger} />, alignment: 'center' },
+          ]}
+          selected={''}
+          onSelect={handleOptionSelect}
+        />
+      </Animated.View>
       <GestureDetector gesture={composed}>
         <Animated.View style={animStyle}>
           <Text
-            // onLayout={(e) => {
-            //   containerSize.value = {
-            //     width: e.nativeEvent.layout.width,
-            //     height: e.nativeEvent.layout.height
-            //   };
-            // }}
             style={{
               fontFamily: text.font,
               fontSize: text.size,
