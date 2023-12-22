@@ -109,6 +109,7 @@ export type Page = {
   images: PageImageType[];
   texts: PageTextType[];
   stickers: PageStickerType[];
+  preview_url?: string | null;
   creation_date: string;
 };
 

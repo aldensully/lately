@@ -33,7 +33,6 @@ const AuthProvider = ({ children }: any) => {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      console.log('auth state changed', u);
       if (u) {
         const dbUser = await getDbUser(u.uid);
         if (dbUser) {

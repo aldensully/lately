@@ -1,4 +1,4 @@
-import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Dimensions, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons, Feather, AntDesign } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ContextMenuOption, Diary, Page, ScreenProps, UseNavigationType } from '../types';
@@ -51,7 +51,7 @@ const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
           width: '100%', flexWrap: 'wrap'
         }}>
           {diary && diary.pages && diary?.pages?.length > 0 ?
-            diary.pages.map(p => p && (
+            diary.pages?.reverse().map(p => p && (
               <Pressable
                 onPress={() => navigation.navigate('Page', { page: p, diary: diary })}
                 style={{
@@ -65,7 +65,18 @@ const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
                 }}
                 key={p.id}
               >
-                <Text type='h3'>{p.title}</Text>
+                {p.preview_url ?
+                  <Image style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: 6,
+                    resizeMode: 'cover'
+                  }}
+                    source={{ uri: p.preview_url }}
+                  />
+                  :
+                  <Text type='h3'>{p.title}</Text>
+                }
               </Pressable>
             )) :
             <View style={{ flex: 1, gap: 8, alignItems: 'center', justifyContent: 'center', paddingBottom: 100 }}>

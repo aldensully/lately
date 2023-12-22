@@ -1,10 +1,10 @@
-import { ActionSheetIOS, Alert, Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View, Image, Modal } from 'react-native';
+import { ActionSheetIOS, Alert, Dimensions, Keyboard, KeyboardAvoidingView, Pressable, StyleSheet, TextInput, View, Image, Modal, Platform, ActivityIndicator } from 'react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Diary, ImageShape, Page, PageImageType, PageTextType, ScreenProps } from '../types';
-import { Container, Text, useThemeColor } from '../Theme/Themed';
+import { Button, Container, Text, useThemeColor } from '../Theme/Themed';
 import Header from '../Components/Header';
 import BackButton from '../Components/BackButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +14,7 @@ import BackgroundIcon from '../../assets/icons/BackgroundIcon';
 import TextIcon from '../../assets/icons/TextIcon';
 import ImageIcon from '../../assets/icons/ImageIcon';
 import BrushIcon from '../../assets/icons/BrushIcon';
-import { apiCreatePage, apiListDiaries, blobToBase64, generateUUID, getActiveDiary, uriToBlob } from '../Utils/utilFns';
+import { apiCreatePage, blobToBase64, generateUUID, getActiveDiary, uploadMedia, uriToBlob } from '../Utils/utilFns';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import AlignLeftIcon from '../../assets/icons/AlignLeftIcon';
@@ -27,17 +27,15 @@ import GraphBackground from '../../assets/svg-backgrounds/GraphBackground';
 import GridBackground from '../../assets/svg-backgrounds/GridBackground';
 import BubbleBackground from '../../assets/svg-backgrounds/BubbleBackground';
 import defaultStore from '../Stores/defaultStore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import TextColorIcon from '../../assets/icons/TextColorIcon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ContextMenu from '../Components/ContextMenu';
-import { useTheme } from '@react-navigation/native';
 import CropIcon from '../../assets/icons/CropIcon';
 import TrashIcon from '../../assets/icons/TrashIcon';
-import { query } from 'firebase/firestore';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
+import { captureRef } from 'react-native-view-shot';
 
 
 const DoneButton = ({ onPress }: { onPress: () => void; }) => {
@@ -58,8 +56,10 @@ const DoneButton = ({ onPress }: { onPress: () => void; }) => {
 };
 
 
+const MAX_SIZE = 500;
 const BOTTOM_CONTAINER_HEIGHT = 50;
 const { width, height } = Dimensions.get('window');
+
 const BACKGROUNDS = [
   { key: 'graph', svg: <GraphBackground /> },
   { key: 'grid', svg: <GridBackground /> },
@@ -72,8 +72,8 @@ const cellWidth = (width - 60) / 3;
 
 const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const { top, bottom } = useSafeAreaInsets();
+  const canvasHeight = height - (BOTTOM_CONTAINER_HEIGHT + bottom + top + 45);
   const [overlaysShown, setOverlaysShown] = useState(true);
-  const [hasBackAction, setHasBackAction] = useState(false);
   const [texts, setTexts] = useState<PageTextType[]>([]);
   const [images, setImages] = useState<PageImageType[]>([]);
   const [background, setBackground] = useState<{ type: 'image' | 'pattern', uri: string | undefined, bgKey: string; } | null>(null);
@@ -82,6 +82,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const [newText, setNewText] = useState('');
   const inputRef = useRef<TextInput>(null);
   const [focusedTextId, setFocusedTextId] = useState<string | null>(null);
+  const [cropImage, setCropImage] = useState<PageImageType | null>(null);
   const [font, setFont] = useState('SingleDay');
   const [color, setColor] = useState('#000000');
   const [backgroundTextColor, setBackgroundTextColor] = useState<string | null>(null);
@@ -101,6 +102,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const { data: activeDiary, isLoading } = useQuery({ queryKey: ['activeDiary'], queryFn: () => user && getActiveDiary(user.id) });
   const queryClient = useQueryClient();
   const user = defaultStore(state => state.user);
+  const imageRef = useRef<View | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const createPageMutation = useMutation({
     mutationFn: async (newPage: Page) => apiCreatePage(newPage),
@@ -127,6 +130,64 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       Alert.alert('There was an error saving your page, please try again.');
     }
   });
+
+
+  const handleSave = async () => {
+    if (loading) return;
+    setLoading(true);
+
+    if (!activeDiary) {
+      setLoading(false);
+      Alert.alert("There was an error loading your diary!");
+      return;
+    }
+
+    const pageCount = activeDiary.pages.length + 1;
+
+    const imageUploadPromises = images.map(i => uploadMedia(i.id, i.uri));
+    const screenshotPromise = screenshotPreview();
+
+    // Performing image uploads and screenshot capture concurrently
+    const [imageUploads, screenshot] = await Promise.all([
+      Promise.allSettled(imageUploadPromises),
+      screenshotPromise
+    ]);
+
+    const imgUrls = imageUploads.map(i =>
+      i.status === 'fulfilled' && i.value ? i.value : ''
+    );
+
+    if (imgUrls.includes('')) {
+      setLoading(false);
+      Alert.alert("There was an error saving your page, please try again.");
+      return;
+    }
+
+    const newImages = images.map((i, index) => ({
+      ...i,
+      uri: imgUrls[index]
+    }));
+
+
+    const page: Page = {
+      id: generateUUID(),
+      count: pageCount,
+      title: new Date().toISOString().split('T')[0],
+      content: '',
+      diary_id: activeDiary.id,
+      images: newImages,
+      texts: texts,
+      preview_url: screenshot,
+      stickers: [],
+      creation_date: new Date().toISOString()
+    };
+
+    createPageMutation.mutate(page);
+
+    navigation.goBack();
+  };
+
+
 
   useEffect(() => {
     Keyboard.addListener('keyboardWillShow', () => {
@@ -180,6 +241,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       };
       handleUpdateText(newT);
       setFocusedTextId(null);
+      Keyboard.dismiss();
       setOpenInput(false);
       setNewText('');
       setMaxZ(z => z + 1);
@@ -253,29 +315,52 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
         return;
       }
 
+
+      const imageWidth = result.assets[0].width;
+      const imageHeight = result.assets[0].height;
+
+      let newWidth, newHeight, scaleFactor = 0;
+
+      if (imageWidth > imageHeight) {
+        scaleFactor = MAX_SIZE / imageWidth;
+        newWidth = MAX_SIZE;
+        newHeight = imageHeight * scaleFactor;
+      } else {
+        scaleFactor = MAX_SIZE / imageHeight;
+        newHeight = MAX_SIZE;
+        newWidth = imageWidth * scaleFactor;
+      }
+      // const defaultPosX = scaleFactor === 1 ? 20 : (width - newWidth) / 2;
+      // const defaultPosY = 20;
+
+      const defaultPosX = width / 2;
+      const defaultPosY = (height - 200) / 2;
+
+      const relativeScaleToScreen = (width * 0.7) / newWidth;
+
       const manipResult = await manipulateAsync(
         result.assets[0].uri,
-        [{ resize: { width: 400 } }],
-        { format: SaveFormat.PNG, compress: 0.4 }
-      );
+        [{ resize: { width: newWidth, height: newHeight } }],
+        { format: SaveFormat.JPEG }
+      ).catch(e => {
+        console.log(e);
+        return { uri: null };
+      });
 
       if (!manipResult.uri) return;
 
       Image.getSize(manipResult.uri, (w, h) => {
-        const aspectRatio = w / h;
-        const newWidth = 200;
-        const newHeight = newWidth / aspectRatio;
         const i: PageImageType = {
           id: generateUUID(),
           uri: manipResult.uri,
-          x: width / 4,
-          y: height / 4,
+          x: defaultPosX,
+          y: defaultPosY,
           z: maxZ,
           rotate: 0,
-          scale: 1,
+          scale: relativeScaleToScreen,
           shape: 'inherit',
-          width: newWidth,
-          height: newHeight
+          width: w,
+          height: h
         };
         setImages([...images, i]);
         setMaxZ(z => z + 1);
@@ -286,8 +371,6 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       Alert.alert('Something went wrong, please try again.');
     }
   };
-
-  const { width, height } = Dimensions.get('window');
 
   const handleStickerButtonPress = () => {
     setStickerModalOpen(true);
@@ -376,38 +459,6 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     setTexts(texts => texts.map(t => ({ ...t, z: t.z + 1 })));
   };
 
-
-  const [loading, setLoading] = useState(false);
-
-  const handleSave = async () => {
-    if (loading) return;
-    setLoading(true);
-
-    if (!activeDiary) {
-      setLoading(false);
-      Alert.alert("There was an error loading your diary!");
-      return;
-    }
-
-    const pageCount = activeDiary.pages.length + 1;
-
-    const page: Page = {
-      id: generateUUID(),
-      count: pageCount,
-      title: new Date().toISOString().split('T')[0],
-      content: '',
-      diary_id: activeDiary.id,
-      images: images,
-      texts: texts,
-      stickers: [],
-      creation_date: new Date().toISOString()
-    };
-
-    createPageMutation.mutate(page);
-
-    navigation.goBack();
-  };
-
   const bgAnimColorDragStyle = useAnimatedStyle(() => {
     const c = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
     return {
@@ -431,8 +482,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     .onUpdate(e => {
       if (e.translationX + bgLastColorOffsetX.value < 0 || e.translationX + bgLastColorOffsetX.value > 200) return;
       bgColorOffsetX.value = bgLastColorOffsetX.value + e.translationX;
-      const newColor = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
-      setBackgroundTextColor(newColor);
+      // const newColor = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
+      // setBackgroundTextColor(newColor);
     })
     .onEnd(e => {
       const newColor = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
@@ -465,8 +516,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     .onUpdate(e => {
       if (e.translationX + lastColorOffsetX.value < 0 || e.translationX + lastColorOffsetX.value > 200) return;
       colorOffsetX.value = lastColorOffsetX.value + e.translationX;
-      const newColor = interpolateColor(colorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
-      setColor(newColor);
+      // const newColor = interpolateColor(colorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
+      // setColor(newColor);
     })
     .onEnd(e => {
       const newColor = interpolateColor(colorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
@@ -483,9 +534,37 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     setTexts(texts.filter(t => t.id !== id));
   };
 
+  const screenshotPreview = async () => {
+    try {
+      const localUri = await captureRef(imageRef, {
+        height: canvasHeight,
+        width: width,
+        quality: 1
+      });
+      console.log("URI: ", localUri);
+      return localUri;
+    } catch (e) {
+      console.log(e);
+      return null;
+    }
+  };
+
 
   return (
     <Container backgroundColor='#fff'>
+      <CropModal
+        image={cropImage}
+        onFinish={(img: PageImageType) => {
+          setImages(igs => igs.map(i => {
+            if (i.id === img.id) {
+              return img;
+            }
+            return i;
+          }));
+          setCropImage(null);
+        }}
+        onClose={() => setCropImage(null)}
+      />
       <Modal
         presentationStyle='pageSheet'
         animationType='slide'
@@ -686,7 +765,13 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
           </View>
         </KeyboardAvoidingView>
       }
-      <View style={{ flex: 1, zIndex: 1, overflow: 'hidden', backgroundColor: colors.surface2 }}>
+      <View ref={imageRef} collapsable={false} style={{
+        zIndex: 0,
+        overflow: 'hidden',
+        width: width,
+        height: canvasHeight,
+        backgroundColor: '#fff'
+      }}>
         {background && background.type === 'image' ? <Image style={{ position: 'absolute', zIndex: 0, left: 0, top: 0, right: 0, bottom: 0 }} source={{ uri: background.uri }} /> : <SvgBackground bgKey={background?.bgKey} />}
         {texts?.map(t => t.id !== focusedTextId && (
           <MovableText
@@ -708,6 +793,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
             onDelete={handleDeleteImage}
             onBringImageToFront={bringImageToFront}
             onSendImageToBack={sendImageToBack}
+            onCropImage={() => setCropImage({ ...img })}
           />
         ))}
       </View>
@@ -737,6 +823,402 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   );
 };
 
+type CropModalProps = {
+  onClose: () => void;
+  image: PageImageType | null;
+  onFinish: (img: PageImageType) => void;
+};
+const CropModal = (props: CropModalProps) => {
+  const { onClose, onFinish, image } = props;
+  if (!image) return null;
+  const { bottom, top } = useSafeAreaInsets();
+  let containerHeight = height - bottom - 32 - 60 - 32 - top - 100;
+  let containerWidth = width - 60;
+  let scaleFactor = 1;
+
+  const containerAspect = containerWidth / containerHeight;
+
+  const imageAspect = image.width / image.height;
+
+  if (imageAspect > containerAspect) {
+    scaleFactor = containerWidth / image.width;
+    containerHeight = image.height * scaleFactor;
+    // containerWidth = image.width * scaleFactor;
+  } else if (imageAspect < containerAspect) {
+    scaleFactor = containerHeight / image.height;
+    containerWidth = image.width * scaleFactor;
+    // containerHeight = image.height * scaleFactor;
+  }
+
+  // if (image.width === image.height) {
+  //   scaleFactor = containerWidth / image.width;
+  //   containerHeight = image.height * scaleFactor;
+  // }
+  // else if (image.width > image.height) {
+  //   scaleFactor = containerWidth / image.width;
+  //   containerHeight = image.height * scaleFactor;
+  // }
+  // else {
+  //   scaleFactor = containerHeight / image.height;
+  //   containerWidth = image.width * scaleFactor;
+  //   console.log(containerWidth, containerHeight, scaleFactor);
+  // }
+
+
+  // const scaleFactor = containerHeight / image.height;
+  // const containerWidth = image.width * scaleFactor;
+  const cropBaseOffset = useSharedValue({ x: 0, y: 0 });
+  const lastCropBaseOffset = useSharedValue({ x: 0, y: 0 });
+  const cropOffset = useSharedValue({ x: containerWidth, y: containerHeight });
+  const lastCropOffset = useSharedValue({ x: containerWidth, y: containerHeight });
+  const cropSize = useSharedValue({ width: containerWidth, height: containerHeight });
+  const [showCrop, setShowCrop] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleCrop = async () => {
+    if (!image) {
+      onClose();
+      return;
+    };
+
+    if (loading) return;
+    setLoading(true);
+
+    const newWidth = cropSize.value.width * (1 / scaleFactor);
+    const newHeight = cropSize.value.height * (1 / scaleFactor);
+
+    const crop = {
+      originX: cropBaseOffset.value.x * (1 / scaleFactor),
+      originY: cropBaseOffset.value.y * (1 / scaleFactor),
+      width: newWidth,
+      height: newHeight
+    };
+
+    const manipResult = await manipulateAsync(
+      image.uri,
+      [{ crop }],
+      { format: SaveFormat.PNG, compress: 1 }
+    );
+
+    if (!manipResult.uri) {
+      onClose();
+      setLoading(false);
+      return;
+    }
+
+    let newNewWidth = newWidth;
+    let newNewHeight = newHeight;
+    let newScaleFactor = 1;
+
+    if (newNewWidth > newNewHeight) {
+      newScaleFactor = MAX_SIZE / newNewWidth;
+    } else {
+      newScaleFactor = MAX_SIZE / newHeight;
+    }
+
+    const defaultPosX = scaleFactor === 1 ? 20 : (width - newWidth) / 2;
+    const defaultPosY = 20;
+
+    const posX = (width - newNewWidth) / 2;
+    const posY = (height - 200 - newHeight) / 2;
+    const relativeScaleToScreen = (width * 0.7) / newNewWidth;
+
+    const newImage: PageImageType = {
+      ...image,
+      // scale: relativeScaleToScreen,
+      x: posX,
+      y: posY,
+      uri: manipResult.uri,
+      width: newWidth,
+      height: newHeight
+    };
+
+    onFinish(newImage);
+    setLoading(false);
+  };
+
+  const cropCornerGesture = Gesture.Pan()
+    .onUpdate(e => {
+      if (lastCropOffset.value.x + e.translationX < 0 && lastCropOffset.value.y + e.translationY < 0) return;
+      if (lastCropOffset.value.x + e.translationX > containerWidth && lastCropOffset.value.y + e.translationY > containerHeight) return;
+
+      let moveX = 0;
+      let moveY = 0;
+
+      if (lastCropOffset.value.x + e.translationX >= 0
+        && lastCropOffset.value.x + e.translationX <= containerWidth
+        && lastCropOffset.value.y + e.translationY >= 0
+        && lastCropOffset.value.y + e.translationY <= containerHeight
+      ) {
+        moveX = e.translationX + lastCropOffset.value.x;
+        moveY = e.translationY + lastCropOffset.value.y;
+      } else {
+        if (lastCropOffset.value.x + e.translationX < 0
+          && lastCropOffset.value.y + e.translationY >= 0
+          && lastCropOffset.value.y + e.translationY <= containerHeight) {
+          moveY = e.translationY + lastCropOffset.value.y;
+          moveX = 0;
+        }
+        else if (lastCropOffset.value.y + e.translationY < 0
+          && lastCropOffset.value.x + e.translationX >= 0
+          && lastCropOffset.value.x + e.translationX <= containerWidth) {
+          moveX = e.translationX + lastCropOffset.value.x;
+          moveY = 0;
+        } else if (lastCropOffset.value.x + e.translationX > containerWidth
+          && lastCropOffset.value.y + e.translationY >= 0
+          && lastCropOffset.value.y + e.translationY <= containerHeight) {
+          moveY = e.translationY + lastCropOffset.value.y;
+          moveX = containerWidth;
+        } else if (lastCropOffset.value.y + e.translationY >= containerHeight
+          && lastCropOffset.value.x + e.translationX >= 0
+          && lastCropOffset.value.x + e.translationX <= containerWidth) {
+          moveX = e.translationX + lastCropOffset.value.x;
+          moveY = containerHeight;
+        } else if (lastCropOffset.value.x + e.translationX >= containerWidth
+          && lastCropOffset.value.y + e.translationY >= containerHeight) {
+          moveX = containerWidth;
+          moveY = containerHeight;
+        } else if (lastCropOffset.value.x + e.translationX > containerWidth
+          && lastCropOffset.value.y + e.translationY < containerHeight) {
+          moveX = containerWidth;
+          moveY = 0;
+        } else if (lastCropOffset.value.x + e.translationX < containerWidth
+          && lastCropOffset.value.y + e.translationY > containerHeight) {
+          moveX = 0;
+          moveY = containerHeight;
+        }
+      }
+
+      cropOffset.value = {
+        x: moveX,
+        y: moveY
+      };
+
+      cropSize.value = {
+        width: containerWidth - (containerWidth - moveX),
+        height: containerHeight - (containerHeight - moveY)
+      };
+
+    })
+    .onEnd(e => {
+      lastCropOffset.value = {
+        x: cropOffset.value.x,
+        y: cropOffset.value.y
+      };
+      setShowCrop(true);
+    })
+    .runOnJS(true);
+
+  const cropDragGesture = Gesture.Pan()
+    .onUpdate(e => {
+
+      let moveX = 0;
+      let moveY = 0;
+
+      if (lastCropBaseOffset.value.x + e.translationX < 0 && lastCropBaseOffset.value.y + e.translationY < 0) return;
+      if (lastCropBaseOffset.value.x + e.translationX > containerWidth && lastCropBaseOffset.value.y + e.translationY > containerHeight) return;
+
+      if (lastCropBaseOffset.value.x + e.translationX + cropSize.value.width >= 0
+        && lastCropBaseOffset.value.x + e.translationX + cropSize.value.width <= containerWidth
+        && lastCropBaseOffset.value.y + e.translationY + cropSize.value.height >= 0
+        && lastCropBaseOffset.value.y + e.translationY + cropSize.value.height <= containerHeight
+      ) {
+        moveX = e.translationX + lastCropBaseOffset.value.x;
+        moveY = e.translationY + lastCropBaseOffset.value.y;
+      } else {
+        if (lastCropBaseOffset.value.x + e.translationX < 0
+          && lastCropBaseOffset.value.y + e.translationY >= 0
+          && lastCropBaseOffset.value.y + e.translationY + cropSize.value.height <= containerHeight) {
+          moveY = e.translationY + lastCropBaseOffset.value.y;
+          moveX = 0;
+        }
+        else if (lastCropBaseOffset.value.y + e.translationY < 0
+          && lastCropBaseOffset.value.x + e.translationX >= 0
+          && lastCropBaseOffset.value.x + e.translationX + cropSize.value.width <= containerWidth) {
+          moveX = e.translationX + lastCropBaseOffset.value.x;
+          moveY = 0;
+        }
+        else if (lastCropBaseOffset.value.x + e.translationX + cropSize.value.width > containerWidth
+          && lastCropBaseOffset.value.y + e.translationY >= 0
+          && lastCropBaseOffset.value.y + e.translationY + cropSize.value.height <= containerHeight) {
+          moveY = e.translationY + lastCropBaseOffset.value.y;
+          moveX = containerWidth;
+        } else if (lastCropBaseOffset.value.y + e.translationY >= containerHeight
+          && lastCropBaseOffset.value.x + e.translationX >= 0
+          && lastCropBaseOffset.value.x + e.translationX <= containerWidth) {
+          moveX = e.translationX + lastCropBaseOffset.value.x;
+          moveY = containerHeight;
+        } else if (lastCropBaseOffset.value.x + e.translationX >= containerWidth
+          && lastCropBaseOffset.value.y + e.translationY >= containerHeight) {
+          moveX = containerWidth;
+          moveY = containerHeight;
+        } else if (lastCropBaseOffset.value.x + e.translationX > containerWidth
+          && lastCropBaseOffset.value.y + e.translationY < containerHeight) {
+          moveX = containerWidth;
+          moveY = 0;
+        } else if (lastCropBaseOffset.value.x + e.translationX < containerWidth
+          && lastCropBaseOffset.value.y + e.translationY > containerHeight) {
+          moveX = 0;
+          moveY = containerHeight;
+        }
+      }
+
+
+      cropBaseOffset.value = {
+        x: e.translationX + lastCropBaseOffset.value.x,
+        y: e.translationY + lastCropBaseOffset.value.y
+      };
+    })
+    .onEnd(e => {
+      lastCropBaseOffset.value = {
+        x: cropBaseOffset.value.x,
+        y: cropBaseOffset.value.y
+      };
+    });
+
+
+
+  const animCornerDraggerStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: cropOffset.value.x + cropBaseOffset.value.x },
+        { translateY: cropOffset.value.y + cropBaseOffset.value.y }
+      ],
+      left: -20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      top: -20,
+      width: 40,
+      height: 40,
+      zIndex: 100000,
+      borderRadius: 24,
+      position: 'absolute',
+    };
+  });
+
+  const animCropStyle = useAnimatedStyle(() => {
+    return {
+      // width: cropSize.value.width + 2,
+      // height: cropSize.value.height + 2,
+      width: image.width,
+      height: image.height,
+      position: 'absolute',
+      zIndex: image.z + 1,
+      borderWidth: 1,
+      borderColor: '#ffffff',
+      // transform: [
+      //   { translateX: cropBaseOffset.value.x - 1 },
+      //   { translateY: cropBaseOffset.value.y - 1 },
+      // ]
+    };
+  });
+
+  const colors = useThemeColor();
+
+  const animBaseDraggerStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: cropBaseOffset.value.x },
+        { translateY: cropBaseOffset.value.y }
+      ],
+      width: cropSize.value.width,
+      height: cropSize.value.height,
+      borderWidth: 1,
+      borderColor: '#FFF',
+      zIndex: 1000,
+      position: 'absolute',
+      borderRadius: 0,
+      // backgroundColor: '#000'
+    };
+  });
+
+
+  const animInnerCropStyle = useAnimatedStyle(() => {
+    return {
+      width: cropSize.value.width,
+      height: cropSize.value.height,
+      transform: [
+        { translateX: cropBaseOffset.value.x },
+        { translateY: cropBaseOffset.value.y }
+      ],
+      backgroundColor: 'black'
+    };
+  });
+
+
+  return (
+    <Modal
+      presentationStyle='overFullScreen'
+      animationType='slide'
+      visible={image !== null}
+      onRequestClose={onClose}
+    >
+      <Container showInsetTop >
+        <Header
+          style={{ height: 50, paddingTop: 0, paddingHorizontal: 10 }}
+          headerLeft={<CloseButton onPress={onClose} />}
+          headerTitle={<Text style={{ marginBottom: 2 }} type='h2'>Crop Image</Text>}
+        />
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'space-around', paddingBottom: bottom + 32 }}>
+          {image && (<View style={{
+            width: '100%',
+            height: containerHeight,
+            marginTop: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <View style={{ width: containerWidth, height: containerHeight }}>
+              <GestureDetector gesture={cropCornerGesture}>
+                <Animated.View style={animCornerDraggerStyle}>
+                  <View style={{ width: 20, height: 20, borderRadius: 20, backgroundColor: '#FFFFFF' }} />
+                </Animated.View>
+              </GestureDetector>
+              <GestureDetector gesture={cropDragGesture}>
+                <Animated.View style={animBaseDraggerStyle} />
+              </GestureDetector>
+              <MaskedView
+                maskElement={<Animated.View style={animInnerCropStyle} />}
+                style={{ flex: 1, backgroundColor: 'transparent' }}
+              >
+                <Image
+                  source={{ uri: image.uri }}
+                  style={{
+                    width: containerWidth,
+                    height: containerHeight,
+                    aspectRatio: image.width / image.height,
+                  }}
+                  resizeMode='cover'
+                />
+              </MaskedView>
+              <Image
+                source={{ uri: image.uri }}
+                style={{
+                  opacity: 0.5,
+                  width: containerWidth,
+                  height: containerHeight,
+                  aspectRatio: image.width / image.height,
+                }}
+                resizeMode='cover'
+              />
+            </View>
+          </View>
+          )}
+          <Button
+            title="Crop"
+            onPress={handleCrop}
+            type='primary'
+            loading={loading}
+            disabled={loading}
+            style={{ height: 55 }}
+          />
+        </View>
+      </Container>
+    </Modal >
+  );
+};
+
+
+
 type MovableImageProps = {
   image: PageImageType;
   onChange: (i: PageImageType) => void;
@@ -744,10 +1226,11 @@ type MovableImageProps = {
   onDelete: (id: string) => void;
   onBringImageToFront: (id: string) => void;
   onSendImageToBack: (id: string) => void;
+  onCropImage: () => void;
 };
 
 const MovableImage = (props: MovableImageProps) => {
-  const { image, onChange, onFocus, onDelete, onBringImageToFront, onSendImageToBack } = props;
+  const { image, onChange, onFocus, onDelete, onBringImageToFront, onSendImageToBack, onCropImage } = props;
   const lastOffset = useSharedValue({ x: image.x, y: image.y });
   const offset = useSharedValue({ x: image.x, y: image.y });
   const lastScale = useSharedValue(image.scale);
@@ -756,6 +1239,25 @@ const MovableImage = (props: MovableImageProps) => {
   const rotation = useSharedValue(image.rotate);
   const minSize = Math.min(image.width, image.height);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showCrop, setShowCrop] = useState(false);
+  const cropSize = useSharedValue({ width: image.width, height: image.height });
+  const isSnapped = useSharedValue(false);
+
+  // useEffect(() => {
+  //   imageScale.value = image.scale;
+  // }, [image.scale]);
+
+  // useEffect(() => {
+  //   offset.value = {
+  //     x: image.x,
+  //     y: image.y
+  //   };
+  //   lastOffset.value = {
+  //     x: image.x,
+  //     y: image.y
+  //   };
+  // }, [image.x, image.y]);
+
 
   const animImageStyle = useAnimatedStyle(() => {
     return {
@@ -763,6 +1265,8 @@ const MovableImage = (props: MovableImageProps) => {
       height: image.height,
       position: 'absolute',
       zIndex: image.z,
+      left: -image.width / 2,
+      top: -image.height / 2,
       transform: [
         { translateX: offset.value.x },
         { translateY: offset.value.y },
@@ -776,7 +1280,6 @@ const MovableImage = (props: MovableImageProps) => {
     return {
       position: 'absolute',
       zIndex: 100000,
-
       transform: [
         { translateX: offset.value.x },
         { translateY: offset.value.y }
@@ -789,7 +1292,20 @@ const MovableImage = (props: MovableImageProps) => {
       lastRotation.value = rotation.value;
     })
     .onUpdate((e) => {
-      rotation.value = lastRotation.value + e.rotation * 180 / Math.PI;
+      // rotation.value = lastRotation.value + e.rotation * 180 / Math.PI;
+      if (e.rotation > -0.04 && e.rotation < 0.04) {
+        if (!isSnapped.value) {
+          isSnapped.value = true;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+        rotation.value = 0;
+      } else if (e.rotation < -0.04 || e.rotation > 0.04) {
+        isSnapped.value = false;
+        rotation.value = lastRotation.value + e.rotation * 180 / Math.PI;
+      }
+      else {
+        rotation.value = lastRotation.value + e.rotation * 180 / Math.PI;
+      }
     })
     .onEnd(() => {
       handleSetRotation(rotation.value);
@@ -825,6 +1341,7 @@ const MovableImage = (props: MovableImageProps) => {
       };
       handleSetOffsets(offset.value.x, offset.value.y);
     })
+    .enabled(!showCrop)
     .runOnJS(true);
 
   const tapGesture = Gesture.Tap()
@@ -839,9 +1356,81 @@ const MovableImage = (props: MovableImageProps) => {
   const longPress = Gesture.LongPress()
     .onStart(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setMenuOpen(true);
+      showOptionsModal();
+      // setMenuOpen(true);
     })
     .runOnJS(true);
+
+  const showOptionsModal = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Crop', 'Bring To Front', 'Send To Back', 'Remove Background', 'Delete'],
+          destructiveButtonIndex: 5,
+          cancelButtonIndex: 0,
+          userInterfaceStyle: 'dark',
+        },
+        async buttonIndex => {
+          if (buttonIndex === 0) {
+            // cancel action
+          } else if (buttonIndex === 1) {
+            onCropImage();
+          } else if (buttonIndex === 2) {
+            onBringImageToFront(image.id);
+          } else if (buttonIndex === 3) {
+            onSendImageToBack(image.id);
+          } else if (buttonIndex === 4) {
+            const apiKey = 'r8_cqA8gRrmhMkWcJHzBYYQZorrj1RTbZF3tDUs6';
+            const blob = await uriToBlob(image.uri);
+            const base64 = await blobToBase64(blob);
+
+            const getUrl = await fetch('https://api.replicate.com/v1/predictions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Token ${apiKey}`
+              },
+              body: JSON.stringify({
+                version: 'fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003',
+                input: { image: base64 }
+              })
+            })
+              .then(response => response.json())
+              .then(data => {
+                if (data.error == null && data.status == 'starting') {
+                  return data.urls.get;
+                }
+                return null;
+              })
+              .catch(error => {
+                console.error('Error:', error);
+                return null;
+              });
+
+            if (getUrl) {
+              pollUrl(getUrl)
+                .then((dataUrl: string | null | undefined) => {
+                  if (!dataUrl) return;
+                  const t: PageImageType = {
+                    ...image,
+                    uri: dataUrl
+                  };
+                  onChange(t);
+                })
+                .catch(error => console.error('Polling error:', error));
+            } else {
+              console.log('Error getting url');
+            }
+          } else if (buttonIndex === 5) {
+            onDelete(image.id);
+          }
+        },
+      );
+    }
+    else {
+      //handle android
+    }
+  };
 
   const handleSetImageShape = (shape: ImageShape) => {
     const t: PageImageType = {
@@ -853,7 +1442,7 @@ const MovableImage = (props: MovableImageProps) => {
 
   // const composed = Gesture.Race(rotateGesture, tapGesture, dragGesture, pinchGesture);
   const composed = Gesture.Simultaneous(
-    tapGesture,
+    // tapGesture,
     longPress,
     Gesture.Simultaneous(dragGesture, pinchGesture, rotateGesture)
   );
@@ -884,6 +1473,10 @@ const MovableImage = (props: MovableImageProps) => {
   };
 
   const handleOptionSelect = async (option: string) => {
+    if (option === 'Crop') {
+      // setShowCrop(true);
+      onCropImage();
+    }
     if (option === 'Delete') {
       onDelete(image.id);
     }
@@ -939,11 +1532,32 @@ const MovableImage = (props: MovableImageProps) => {
     setMenuOpen(false);
   };
 
+  const [loading, setLoading] = useState(true);
+
+  const animLoadingStyle = useAnimatedStyle(() => {
+    return {
+      position: 'absolute',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: image.width * imageScale.value,
+      height: image.height * imageScale.value,
+      transform: [
+        {
+          translateX: offset.value.x
+        },
+        {
+          translateY: offset.value.y
+        }
+      ]
+    };
+  });
+
   const colors = useThemeColor();
 
   return (
     <>
-      <Animated.View style={animContextStyle}>
+      {/* <Animated.View style={animContextStyle}>
         <ContextMenu
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
@@ -957,7 +1571,12 @@ const MovableImage = (props: MovableImageProps) => {
           selected={''}
           onSelect={handleOptionSelect}
         />
+      </Animated.View> */}
+      {/* {loading && <Animated.View
+        style={animLoadingStyle}>
+        <ActivityIndicator color={'#fff'} size='small' />
       </Animated.View>
+      } */}
       <GestureDetector gesture={composed}>
         <Animated.View style={animImageStyle}>
           <MaskedView
@@ -972,7 +1591,10 @@ const MovableImage = (props: MovableImageProps) => {
           >
             <Image
               source={{ uri: image.uri }}
-              style={{ width: image.width, height: image.height }}
+              style={{
+                width: image.width,
+                height: image.height
+              }}
               resizeMode='cover'
             />
           </MaskedView>

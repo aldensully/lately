@@ -1,4 +1,4 @@
-import { ActionSheetIOS, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, StyleSheet, Image, Text, View } from 'react-native';
 import React from 'react';
 import { Diary, ScreenProps } from '../types';
 import { Container, useThemeColor } from '../Theme/Themed';
@@ -108,9 +108,32 @@ const Page = ({ navigation, route }: ScreenProps<'Page'>) => {
 
           >{t.body}</Text>
         ))}
-        {/* {images?.map(img => (
-          <MovableImage key={img.id} image={img} onChange={handleUpdateImage} onFocus={handleImageFocus} />
-        ))} */}
+        {page.images?.map(img => (
+          <Image
+            key={img.id}
+            source={{ uri: img.uri }}
+            style={{
+              position: 'absolute',
+              zIndex: img.z,
+              left: -img.width / 2,
+              top: -img.height / 2,
+              width: img.width,
+              height: img.height,
+              transform: [{
+                translateX: img.x
+              }, {
+                translateY: img.y
+              },
+              {
+                rotate: `${img.rotate}deg`
+              },
+              {
+                scale: img.scale
+              }
+              ]
+            }}
+          />
+        ))}
       </View>
     </Container>
   );
