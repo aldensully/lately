@@ -51,7 +51,7 @@ const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
           width: '100%', flexWrap: 'wrap'
         }}>
           {diary && diary.pages && diary?.pages?.length > 0 ?
-            diary.pages?.reverse().map(p => p && (
+            diary.pages?.map(p => p && (
               <Pressable
                 onPress={() => navigation.navigate('Page', { page: p, diary: diary })}
                 style={{

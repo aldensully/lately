@@ -51,6 +51,19 @@ export async function apiSavePage(page: Page) {
   }
 }
 
+export async function apiDeletePage(pageId: string, diary: Diary) {
+  try {
+    const pages = diary.pages.filter(p => p.id != pageId);
+    const docRef = doc(collection(db, 'diaries'), diary.id);
+    await updateDoc(docRef, {
+      pages: pages
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 export async function apiCreatePage(page: Page): Promise<Boolean> {
   try {
     const docRef = doc(collection(db, 'diaries'), page.diary_id);

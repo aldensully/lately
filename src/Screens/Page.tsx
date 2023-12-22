@@ -6,7 +6,7 @@ import Header from '../Components/Header';
 import BackButton from '../Components/BackButton';
 import OptionsButton from '../Components/OptionsButton';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiListDiaries } from '../Utils/utilFns';
+import { apiDeletePage, apiListDiaries } from '../Utils/utilFns';
 import defaultStore from '../Stores/defaultStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,19 +15,20 @@ import * as FileSystem from 'expo-file-system';
 
 const Page = ({ navigation, route }: ScreenProps<'Page'>) => {
   const { page, diary } = route.params;
-  const colors = useThemeColor();
+  if (!page || !diary) return null;
+
   const user = defaultStore(state => state.user);
+  const colors = useThemeColor();
   const queryClient = useQueryClient();
 
   const deletePageMutation = useMutation({
-    // mutationFn: async ({ pageId, diaryId }: { pageId: string; diaryId: string; }) => apiDeletePage({ pageId, diaryId }),
-    mutationFn: async ({ pageId, diaryId }: { pageId: string; diaryId: string; }) => new Promise((resolve, reject) => { resolve(null); }),
-    onMutate: async ({ pageId, diaryId }) => {
+    mutationFn: async ({ pageId, diary }: { pageId: string; diary: Diary; }) => apiDeletePage(pageId, diary),
+    onMutate: async ({ pageId, diary }) => {
       const oldDiaries = queryClient.getQueryData(['diaries']);
       const oldActiveDiary = queryClient.getQueryData(['activeDiary']);
       if (oldDiaries) {
         queryClient.setQueryData(['diaries'], (diaries: Diary[]) => diaries.map(d => {
-          if (d.id === diaryId) {
+          if (d.id === diary.id) {
             return {
               ...d,
               pages: [...d.pages.filter(p => p.id !== pageId)]
@@ -48,10 +49,10 @@ const Page = ({ navigation, route }: ScreenProps<'Page'>) => {
       queryClient.invalidateQueries({ queryKey: ['activeDiary'] });
     },
     onSettled(data, error, variables, context) {
-      // if (error || !data) {
-      //   queryClient.setQueryData(['diaries'], context.oldDiaries);
-      //   queryClient.setQueryData(['activeDiary'], context.oldActiveDiary);
-      // }
+      if (error || !data) {
+        queryClient.setQueryData(['diaries'], context?.oldDiaries);
+        queryClient.setQueryData(['activeDiary'], context?.oldActiveDiary);
+      }
     },
     onError: (e) => {
       console.log(e);
@@ -106,7 +107,7 @@ const Page = ({ navigation, route }: ScreenProps<'Page'>) => {
             text: 'Delete',
             style: 'destructive',
             onPress: () => {
-              deletePageMutation.mutate({ pageId: route.params.page.id, diaryId: route.params.diary.id });
+              deletePageMutation.mutate({ pageId: page.id, diary: diary });
               navigation.goBack();
             }
           }
