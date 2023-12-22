@@ -144,18 +144,24 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
 
     const pageCount = activeDiary.pages.length + 1;
 
+    const screenShot = await screenshotPreview();
+    let screenShotUrl = null;
+    if (screenShot) screenShotUrl = await uploadMedia(generateUUID(), screenShot);
     const imageUploadPromises = images.map(i => uploadMedia(i.id, i.uri));
-    const screenshotPromise = screenshotPreview();
+    // if (screenShot) imageUploadPromises.push(uploadMedia(generateUUID(), screenShot));
 
     // Performing image uploads and screenshot capture concurrently
-    const [imageUploads, screenshot] = await Promise.all([
-      Promise.allSettled(imageUploadPromises),
-      screenshotPromise
-    ]);
+    const imageUploads = await Promise.allSettled(imageUploadPromises);
 
-    const imgUrls = imageUploads.map(i =>
-      i.status === 'fulfilled' && i.value ? i.value : ''
-    );
+    const imgUrls = imageUploads.map(i => {
+      if (i.status === 'rejected') {
+        return '';
+      }
+      if (i.status === 'fulfilled' && i.value) {
+        return i.value;
+      }
+      return '';
+    });
 
     if (imgUrls.includes('')) {
       setLoading(false);
@@ -163,11 +169,18 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       return;
     }
 
-    const newImages = images.map((i, index) => ({
-      ...i,
-      uri: imgUrls[index]
-    }));
+    const newImages: PageImageType[] = [];
 
+    images.forEach((i, index) => {
+      if (imgUrls[index] && imgUrls[index] != null) {
+        newImages.push({
+          ...i,
+          uri: imgUrls[index]
+        });
+      }
+    });
+
+    // const preview_url = imgUrls[imgUrls.length - 1] ?? null;
 
     const page: Page = {
       id: generateUUID(),
@@ -177,7 +190,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       diary_id: activeDiary.id,
       images: newImages,
       texts: texts,
-      preview_url: screenshot,
+      preview_url: screenShotUrl,
       stickers: [],
       creation_date: new Date().toISOString()
     };
