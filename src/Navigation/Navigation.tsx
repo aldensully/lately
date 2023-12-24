@@ -19,6 +19,7 @@ import Page from '../Screens/Page';
 import SignUpOptionsScreen from '../Screens/SignUpOptionsScreen';
 import EditProfileScreen from '../Screens/EditProfileScreen';
 import CreateFirstDiaryScreen from '../Screens/CreateFirstDiaryScreen';
+import WrittenPage from '../Screens/WrittenPage';
 
 const Stack = createNativeStackNavigator<NavigationScreens>();
 const Drawer = createDrawerNavigator<NavigationScreens>();
@@ -49,7 +50,8 @@ const Navigation = () => {
           headerShadowVisible: false,
           headerLeft: renderCloseButton,
         }} name="SignUpOptionsScreen" component={SignUpOptionsScreen} />
-        <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false }} name="NewPage" component={NewPage} />
+        <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false, gestureEnabled: false }} name="NewPage" component={NewPage} />
+        <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false, gestureEnabled: false }} name="WrittenPage" component={WrittenPage} />
         <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false, gestureEnabled: false }} name="CreateFirstDiaryScreen" component={CreateFirstDiaryScreen} />
         <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false, gestureEnabled: false }} name="EditProfileScreen" component={EditProfileScreen} />
         <Stack.Screen options={{ headerShown: false, gestureEnabled: false, animation: 'none' }} name="Welcome" component={WelcomeScreen} />

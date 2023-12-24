@@ -48,6 +48,7 @@ const EditProfileScreen = ({ navigation, route }: ScreenProps<'EditProfileScreen
     const input: User = {
       id: authUser.uid,
       username: finalUsername,
+      thumbnail: null,
       creation_date: getCurrentDateTimeInUTC()
     };
     navigation.navigate('CreateFirstDiaryScreen', { newUser: input, imageUri: image });

@@ -61,7 +61,7 @@ const Page = ({ navigation, route }: ScreenProps<'Page'>) => {
   });
 
   const handleShare = async () => {
-    if (!page.preview_url) return;
+    if (!page.big_preview_url) return;
 
     const fileDetails = {
       extension: '.png',
@@ -73,7 +73,7 @@ const Page = ({ navigation, route }: ScreenProps<'Page'>) => {
     };
 
     const { uri: localUrl } = await FileSystem.downloadAsync(
-      page.preview_url,
+      page.big_preview_url,
       FileSystem.documentDirectory + page.id + fileDetails.extension
     ).catch((e) => {
       console.log(e);
@@ -144,14 +144,14 @@ const Page = ({ navigation, route }: ScreenProps<'Page'>) => {
           overflow: 'hidden',
           backgroundColor: colors.surface2
         }}>
-          {page.preview_url ?
+          {page.big_preview_url ?
             <Image style={{
               width: '100%',
               height: '100%',
               borderRadius: 6,
               resizeMode: 'cover'
             }}
-              source={{ uri: page.preview_url }}
+              source={{ uri: page.big_preview_url }}
             />
             :
             <>

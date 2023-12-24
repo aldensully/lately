@@ -2,10 +2,11 @@ import * as React from "react";
 import Svg, { SvgProps, Path } from "react-native-svg";
 import { IconProps } from "../../src/types";
 import { View } from "react-native";
+
 const BackIcon = (props: SvgProps & IconProps) => (
   <View style={{
-    width: props.size ?? 24,
-    height: props.size ?? 24,
+    width: props.size,
+    height: props.size,
     justifyContent: 'center',
     alignItems: 'center'
   }}>
@@ -18,18 +19,8 @@ const BackIcon = (props: SvgProps & IconProps) => (
         {...props}
       >
         <Path
-          stroke={props.color}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="m9 14-4-4 4-4"
-        />
-        <Path
-          stroke={props.color}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M5 10h11a4 4 0 1 1 0 8h-1"
+          fill={props.color}
+          d="M3.636 11.293a1 1 0 0 0 0 1.414l5.657 5.657a1 1 0 0 0 1.414-1.414L6.757 13H20a1 1 0 0 0 0-2H6.757l3.95-3.95a1 1 0 0 0-1.414-1.414l-5.657 5.657Z"
         />
       </Svg>
     </View>

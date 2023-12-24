@@ -1,16 +1,17 @@
-import { Pressable, PressableProps, StyleSheet } from 'react-native';
+import { Pressable, PressableProps, StyleSheet, ViewStyle } from 'react-native';
 import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { useThemeColor } from '../Theme/Themed';
-import { Ionicons } from '@expo/vector-icons';
+import BackIcon from '../../assets/icons/BackIcon';
 
-type Props = {
+type BackProps = {
   navigate?: boolean;
   onPress?: () => void;
+  style?: ViewStyle;
 };
 
-const BackButton = (props: Props) => {
-  const { onPress, navigate, ...otherProps } = props;
+const BackButton = (props: BackProps) => {
+  const { navigate, onPress, style } = props;
   const colors = useThemeColor();
   const navigation = useNavigation();
 
@@ -18,21 +19,19 @@ const BackButton = (props: Props) => {
     if (navigate) {
       navigation.goBack();
     }
-    onPress && onPress();
+    props.onPress && props.onPress();
   };
   return (
     <Pressable
       onPress={handlePress}
-      style={{
+      style={[{
         width: 40,
         height: 40,
-        marginLeft: -4,
         alignItems: 'center',
-        justifyContent: 'center'
-      }}
-      {...otherProps}
+        justifyContent: 'center',
+      }, style]}
     >
-      <Ionicons name='chevron-back' size={28} color={colors.primaryText} />
+      <BackIcon size={28} color={colors.primaryText} />
     </Pressable>
   );
 };

@@ -3,12 +3,11 @@ import Svg, { SvgProps, Path } from "react-native-svg";
 import { IconProps } from "../../src/types";
 import { View } from "react-native";
 
-const PlusIcon = (props: SvgProps & IconProps) => (
+const MusicIcon = (props: SvgProps & IconProps) => (
   <View style={{
     width: props.size,
     height: props.size,
     justifyContent: 'center',
-    backgroundColor: 'transparent',
     alignItems: 'center'
   }}>
     <View style={{ aspectRatio: 1 }}>
@@ -21,12 +20,13 @@ const PlusIcon = (props: SvgProps & IconProps) => (
       >
         <Path
           fill={props.color}
-          d="M10.5 20.158a1.5 1.5 0 1 0 3 0v-6.5H20a1.5 1.5 0 1 0 0-3h-6.5v-6.5a1.5 1.5 0 1 0-3 0v6.5H4a1.5 1.5 0 1 0 0 3h6.5v6.5Z"
+          fillRule="evenodd"
+          d="M18.671 3.208A2 2 0 0 1 21 5.18V17a4 4 0 1 1-2-3.465V9.18L9 10.847V18c0 .06-.005.117-.015.174A3.5 3.5 0 1 1 7 15.337v-8.49a2 2 0 0 1 1.671-1.973l10-1.666ZM9 8.82l10-1.667V5.18L9 6.847V8.82Z"
+          clipRule="evenodd"
         />
       </Svg>
     </View>
   </View>
 );
 
-
-export default PlusIcon;
+export default MusicIcon;

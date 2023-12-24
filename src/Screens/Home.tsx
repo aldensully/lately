@@ -13,9 +13,12 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ContextMenu from '../Components/ContextMenu';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import PlusIcon from '../../assets/icons/PlusIcon';
-import PlusCircleIcon from '../../assets/icons/PlusCircleIcon';
 import HeartIcon from '../../assets/icons/HeartIcon';
+import PlusIcon from '../../assets/icons/PlusIcon';
+import CropIcon from '../../assets/icons/CropIcon';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import WriteIcon from '../../assets/icons/WriteIcon';
+import CanvasIcon from '../../assets/icons/CanvasIcon';
 
 const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
   const user = defaultStore(state => state.user);
@@ -65,14 +68,14 @@ const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
                 }}
                 key={p.id}
               >
-                {p.preview_url ?
+                {p.small_preview_url ?
                   <Image style={{
                     width: '100%',
                     height: '100%',
                     borderRadius: 6,
                     resizeMode: 'cover'
                   }}
-                    source={{ uri: p.preview_url }}
+                    source={{ uri: p.small_preview_url }}
                   />
                   :
                   <Text type='h3'>{p.title}</Text>
@@ -96,28 +99,93 @@ const NewPageButton = () => {
   const navigation = useNavigation<UseNavigationType>();
   const colors = useThemeColor();
   const { bottom } = useSafeAreaInsets();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const rot = useSharedValue(0);
+  const scale = useSharedValue(1);
+
+  const handleOptionSelect = (option: string) => {
+
+    if (option === 'Write') {
+      navigation.navigate('WrittenPage');
+    }
+    if (option === 'Canvas') {
+      navigation.navigate('NewPage');
+    }
+
+    handleMenuClose();
+  };
+
+  const handleMenuOpen = () => {
+    rot.value = withTiming(-45, { duration: 200 });
+    setMenuOpen(true);
+  };
+
+  const handleMenuClose = () => {
+    rot.value = withTiming(0, { duration: 200 });
+    setMenuOpen(false);
+  };
+
+  const animButtonStyle = useAnimatedStyle(() => {
+    return {
+      width: 60,
+      height: 60,
+      position: 'absolute',
+      right: 30,
+      bottom: bottom + 32,
+      transform: [
+        {
+          rotate: `${rot.value}deg`
+        },
+        {
+          scale: scale.value
+        }
+      ]
+    };
+  });
+
 
   return (
-    <Pressable
-      onPress={() => navigation.navigate('NewPage')}
-      style={{
-        position: 'absolute',
-        right: 30,
-        bottom: bottom + 32,
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.surface2,
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      }}>
-      <Feather name='plus' size={32} color={colors.primary} />
-    </Pressable>
+    <>
+      <ContextMenu
+        open={menuOpen}
+        onClose={handleMenuClose}
+        menuWidth={180}
+        options={[
+          { name: 'Write', color: colors.primaryText, icon: <WriteIcon size={20} color={colors.primaryText} />, alignment: 'space' },
+          { name: 'Canvas', color: colors.primaryText, icon: <CanvasIcon size={20} color={colors.primaryText} />, alignment: 'space' },
+        ]}
+        selected={''}
+        onSelect={handleOptionSelect}
+        style={{
+          right: -50,
+          bottom: 90,
+        }}
+        offsetX={-80}
+        offsetY={-50}
+      />
+      <Animated.View style={animButtonStyle}>
+        <Pressable
+          onPress={handleMenuOpen}
+          // onPressIn={() => scale.value = withTiming(0.92, { duration: 100 })}
+          // onPressOut={() => scale.value = withSpring(1, { stiffness: 100 })}
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: 60,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colors.surface2,
+            elevation: 4,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            flexDirection: 'row',
+          }}>
+          <PlusIcon size={28} color={colors.primaryText} />
+        </Pressable>
+      </Animated.View>
+    </>
   );
 };
 
@@ -200,8 +268,8 @@ const HeaderDropDown = () => {
       </Pressable>
       {diaries && <ContextMenu
         offsetX={110}
-        offsetY={90}
-        style={{ marginTop: -35, marginLeft: -95 }}
+        offsetY={40}
+        style={{ marginTop: 10, marginLeft: -95 }}
         anchor={'top-left'}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}

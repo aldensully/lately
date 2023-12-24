@@ -17,16 +17,16 @@ type Props = {
   anchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   offsetY?: number;
   offsetX?: number;
+  menuWidth?: number;
   style?: ViewStyle;
 };
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 const ContextMenu = (props: Props) => {
-  const { open, style, onClose, passedRef, offsetY = 0, offsetX = 0, options, onSelect, selected } = props;
+  const { open, style, menuWidth = 240, onClose, passedRef, offsetY = 0, offsetX = 0, options, onSelect, selected } = props;
   const animScale = useSharedValue(0);
   const [visible, setVisible] = useState(false);
   const colors = useThemeColor();
   const optionHeight = 48;
-  const menuWidth = 240;
   const menuHeight = options.length * optionHeight;
   const translateY = useSharedValue(offsetY);
   const translateX = useSharedValue(offsetX);
@@ -143,13 +143,24 @@ const ContextMenu = (props: Props) => {
               borderBottomColor: index === (options.length - 1) ? 'transparent' : '#DDD',
               flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: option.alignment === 'list-item' ? 'space-between' : 'center'
+              justifyContent: option.alignment === ('list-item' || 'space') ? 'space-between' : 'center'
             }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              {option.icon}
-              <Text type='p' color={option.color}>{option.name}</Text>
-            </View>
-            {option.name === selected && <CheckIcon size={16} color={colors.primaryText} />}
+            {option.alignment === 'space' ?
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <Text type='p' color={option.color}>{option.name}</Text>
+                  {option.icon}
+                </View>
+              </>
+              :
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  {option.icon}
+                  <Text type='p' color={option.color}>{option.name}</Text>
+                </View>
+                {option.name === selected && <CheckIcon size={16} color={colors.primaryText} />}
+              </>
+            }
           </Pressable>
         ))}
       </Animated.View>

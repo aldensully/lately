@@ -107,14 +107,16 @@ export async function getActiveDiary(user_id: string) {
     const res = await AsyncStorage.getItem('activeDiaryId');
     const diaries = await apiFetchDiaries(user_id);
     if (diaries.length == 0) return null;
-
     if (res == null) {
       AsyncStorage.setItem('activeDiaryId', diaries[0].id);
       return diaries[0];
     }
     const diary = diaries.find(d => d.id == res);
     if (diary == undefined) return null;
-    return diary;
+    return {
+      ...diary,
+      pages: diary.pages.reverse()
+    };
     // const diaries = await AsyncStorage.getItem('diaries');
     // const parsed = JSON.parse(diaries ?? '[]') as Diary[];
     // if (parsed.length == 0) return null;
@@ -137,29 +139,22 @@ export async function apiListCommunityPages(): Promise<Page[]> {
 }
 
 export async function uploadMedia(id: string, uri: string, resizeOptions?: ResizeOptions): Promise<string | null> {
-  const storageRef = ref(storage, id);
-  let finalUri = uri;
-  if (resizeOptions) {
-    const res = await resizeImage(resizeOptions.width, resizeOptions.height, uri);
-    if (res) finalUri = res;
-    else return null;
+  try {
+    const storageRef = ref(storage, id);
+    let finalUri = uri;
+    if (resizeOptions) {
+      const res = await resizeImage(resizeOptions.width, resizeOptions.height, uri);
+      if (res) finalUri = res;
+      else return null;
+    }
+    const blob = await uriToBlob(finalUri);
+    const res = await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+    const url = await getDownloadURL(res.ref);
+    return url;
+  } catch (e) {
+    console.log(e);
+    return null;
   }
-  const blob = await uriToBlob(finalUri);
-  const res = await uploadBytes(storageRef, blob)
-    .then(res => {
-      const url = getDownloadURL(res.ref).then((downloadURL) => {
-        return downloadURL;
-      })
-        .catch(e => {
-          return null;
-        });
-      return url;
-    }).catch(err => {
-      console.log(err);
-      return null;
-    });
-
-  return res;
 }
 
 export async function getDbUser(uid: string): Promise<User | null> {
@@ -280,7 +275,7 @@ export async function resizeImage(width: number, height: number, uri: string) {
     const manipResult = await manipulateAsync(
       uri,
       [{ resize: { height: height, width: width } }],
-      { format: SaveFormat.PNG, compress: 0.2 }
+      { format: SaveFormat.JPEG, compress: 0.2 }
     );
     return manipResult.uri;
   } catch (e) {

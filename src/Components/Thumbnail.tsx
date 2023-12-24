@@ -26,7 +26,7 @@ type Props = {
   id: string;
   username?: string;
   size?: keyof typeof Sizes;
-  url?: string | undefined;
+  url: string | null;
   style?: ImageStyle;
 };
 
@@ -50,6 +50,24 @@ const Thumbnail = (props: Props) => {
   //     }
   //   </View>
   // );
+
+  if (url == null) {
+    return (
+      <View style={[{
+        width: viewSize,
+        height: viewSize,
+        borderRadius: viewSize,
+        backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center'
+      }, style]}>
+        {username && <Text
+          type='h3'
+          style={{ fontFamily: 'SingleDay', fontSize: TextSizes[size] }}
+          color={colors.secondaryText}>{username[0]}</Text>
+        }
+      </View>
+    );
+  }
+
   return (
     Platform.OS === 'ios' ?
       <ExpoImage

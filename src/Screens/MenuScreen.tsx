@@ -84,6 +84,8 @@ const UserSection = () => {
   const hasAccount = defaultStore(state => state.hasAccount);
   const navigation = useNavigation<UseNavigationType>();
 
+  if (!user) return null;
+
   return (
     <ThemeView
       style={{
@@ -96,10 +98,10 @@ const UserSection = () => {
         alignItems: 'center'
       }}>
       <Thumbnail
-        username={user?.username}
-        id={user?.id ?? ''}
+        username={user.username}
+        id={user.id}
         size='lg'
-        url={user?.thumbnail}
+        url={user.thumbnail}
       />
       <View style={{ marginLeft: 12, gap: 4 }}>
         <Text type='h3'>{user?.username}</Text>

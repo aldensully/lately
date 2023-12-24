@@ -41,6 +41,18 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Lately to use your location."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "mediaLibraryPermission": "Lately needs access to your media library to upload a photo"
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Lately needs access to your photos to upload a photo"

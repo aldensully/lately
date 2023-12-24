@@ -3,12 +3,11 @@ import Svg, { SvgProps, Path } from "react-native-svg";
 import { IconProps } from "../../src/types";
 import { View } from "react-native";
 
-const PlusIcon = (props: SvgProps & IconProps) => (
+const ArrowDownIcon = (props: SvgProps & IconProps) => (
   <View style={{
     width: props.size,
     height: props.size,
     justifyContent: 'center',
-    backgroundColor: 'transparent',
     alignItems: 'center'
   }}>
     <View style={{ aspectRatio: 1 }}>
@@ -21,12 +20,11 @@ const PlusIcon = (props: SvgProps & IconProps) => (
       >
         <Path
           fill={props.color}
-          d="M10.5 20.158a1.5 1.5 0 1 0 3 0v-6.5H20a1.5 1.5 0 1 0 0-3h-6.5v-6.5a1.5 1.5 0 1 0-3 0v6.5H4a1.5 1.5 0 1 0 0 3h6.5v6.5Z"
+          d="m18.344 14.866-5.657 5.657a1 1 0 0 1-1.414 0l-5.657-5.657a1 1 0 0 1 1.414-1.414l3.95 3.95V4.16a1 1 0 0 1 2 0v13.243l3.95-3.95a1 1 0 1 1 1.414 1.414Z"
         />
       </Svg>
     </View>
   </View>
 );
 
-
-export default PlusIcon;
+export default ArrowDownIcon;

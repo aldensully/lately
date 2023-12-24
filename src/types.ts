@@ -14,6 +14,7 @@ export type NavigationScreens = {
   FeedbackScreen: undefined;
   Menu: undefined;
   NewPage: undefined;
+  WrittenPage: undefined;
   SignUpOptionsScreen: undefined; //choose apple or google sign up. its a modal
   EditProfileScreen: undefined; //choose apple or google sign up. its a modal
   CreateFirstDiaryScreen: { newUser: User; imageUri?: string | undefined; };
@@ -27,7 +28,7 @@ export type UseNavigationType = NavigationProp<NavigationScreens>;
 export type User = {
   id: string;
   username: string;
-  thumbnail?: string;
+  thumbnail: string | null;
   creation_date: string;
 };
 
@@ -42,7 +43,7 @@ export type JournalTheme = {
 export type ContextMenuOption = {
   name: string;
   icon: ReactNode;
-  alignment: 'list-item' | 'center';
+  alignment: 'list-item' | 'center' | 'space';
   color: string;
 };
 
@@ -53,7 +54,7 @@ export type Diary = {
   spineColor: string;
   textColor: string;
   font: string;
-  image?: string | null;
+  image: string | null;
   user_id: string;
   pages: Page[];
   creation_date: string;
@@ -87,7 +88,8 @@ export type PageTextType = {
   align: 'left' | 'center' | 'right';
   rotate: number;
   color: string;
-  backgroundColor?: string | null;
+  weight: 'bold' | 'normal';
+  backgroundColor: string | null;
   font: string;
 };
 
@@ -100,6 +102,8 @@ export type PageStickerType = {
   size: number;
 };
 
+export type PageTemplate = 'defaultWritten' | 'defaultCanvas';
+
 export type Page = {
   id: string;
   count: number;
@@ -109,8 +113,24 @@ export type Page = {
   images: PageImageType[];
   texts: PageTextType[];
   stickers: PageStickerType[];
-  preview_url?: string | null;
+  small_preview_url: string | null;
+  big_preview_url: string | null;
   creation_date: string;
+  background_color: string;
+  background_image_url: string | null;
+  template: PageTemplate;
+};
+
+export type WeatherTag = {
+  tempurature: number;
+  description: string;
+  main: string;
+};
+
+export type LocationTag = {
+  latitude: number;
+  longitude: number;
+  name: string;
 };
 
 export type IconProps = {

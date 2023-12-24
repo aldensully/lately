@@ -45,6 +45,9 @@ import MusicIcon from '../../assets/icons/MusicIcon';
 import AudioIcon from '../../assets/icons/AudioIcon';
 import MoodIcon from '../../assets/icons/MoodIcon';
 import BottomSheet from '../Components/BottomSheet';
+import ArrowDownIcon from '../../assets/icons/ArrowDownIcon';
+import TemplateIcon from '../../assets/icons/TemplateIcon';
+import TextStyleIcon from '../../assets/icons/TextStyleIcon';
 
 
 const DoneButton = ({ onPress }: { onPress: () => void; }) => {
@@ -59,7 +62,7 @@ const DoneButton = ({ onPress }: { onPress: () => void; }) => {
         paddingHorizontal: 10,
         marginRight: 10
       }}>
-      <Text type='h3' color={colors.primary}>Done</Text>
+      <Text type='h2' color={colors.primary}>Save</Text>
     </Pressable>
   );
 };
@@ -80,20 +83,21 @@ const BACKGROUND_COLORS = ['#FFFFFF', '#EDEDED', '#E5E7D6', '#000000', '#FF0000'
 
 const cellWidth = (width - 60) / 3;
 
+type PageElement = (PageTextType & { type: 'text'; }) | (PageImageType & { type: 'image'; });
 
-
-const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
+const WrittenPage = ({ navigation }: ScreenProps<'WrittenPage'>) => {
   const { top, bottom } = useSafeAreaInsets();
   const canvasHeight = height - (BOTTOM_CONTAINER_HEIGHT + bottom + top + 45 + 20);
-  const canvasWidth = width - 20;
-  const [overlaysShown, setOverlaysShown] = useState(true);
+  const canvasWidth = width;
+  const colors = useThemeColor();
+  const [keyboardHeight, setKeyboardHeight] = useState(400);
   const [texts, setTexts] = useState<PageTextType[]>([]);
   const [images, setImages] = useState<PageImageType[]>([]);
   const [background, setBackground] = useState<{ type: 'image' | 'pattern', uri: string | undefined, bgKey: string; } | null>(null);
   const [keyboardFocused, setKeyboardFocused] = useState(false);
   const [openInput, setOpenInput] = useState(false);
+  const [title, setTitle] = useState('');
   const [newText, setNewText] = useState('');
-  const inputRef = useRef<TextInput>(null);
   const [focusedTextId, setFocusedTextId] = useState<string | null>(null);
   const [cropImage, setCropImage] = useState<PageImageType | null>(null);
   const [font, setFont] = useState('SingleDay');
@@ -106,7 +110,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const [stickerModalOpen, setStickerModalOpen] = useState(false);
   const [backgroundPickerModalOpen, setBackgroundPickerModalOpen] = useState(false);
   const [bgColorPickerOpen, setBgColorPickerOpen] = useState(false);
-  const [backgroundColor, setBackgroundColor] = useState('#FFFFFF');
+  const [backgroundColor, setBackgroundColor] = useState(colors.surface1);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const lastColorOffsetX = useSharedValue(0);
   const colorOffsetX = useSharedValue(0);
@@ -119,6 +123,26 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const user = defaultStore(state => state.user);
   const imageRef = useRef<View | null>(null);
   const [loading, setLoading] = useState(false);
+  const [backgroundColorPickerOpen, setBackgroundColorPickerOpen] = useState(false);
+  const [elements, setElements] = useState<PageElement[]>([{
+    id: generateUUID(),
+    type: 'text',
+    body: '',
+    color: colors.primaryText,
+    font: 'SingleDay',
+    align: 'left',
+    weight: 'normal',
+    x: 0,
+    y: 0,
+    z: 1,
+    rotate: 0,
+    width: 100,
+    height: 30,
+    size: 18,
+    backgroundColor: null,
+    scale: 1
+  }]);
+  const colorSize = (width - 30 - (10 * 6)) / 6;
 
   const createPageMutation = useMutation({
     mutationFn: async (newPage: Page) => apiCreatePage(newPage),
@@ -214,6 +238,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       stickers: [],
       background_color: backgroundColor,
       background_image_url: backgroundImage,
+      template: 'defaultWritten',
       creation_date: new Date().toISOString()
     };
 
@@ -250,11 +275,33 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     }
   };
 
-
+  const handleBackPress = () => {
+    if (texts.length === 0 && images.length === 0) {
+      navigation.goBack();
+      return;
+    }
+    Alert.alert('Save Page?', 'If you go back now, your changes will not be saved.', [
+      {
+        text: 'Save Changes',
+        onPress: () => { },
+        style: 'default'
+      },
+      {
+        text: 'Keep Editing',
+        style: 'default'
+      },
+      {
+        text: "Don't Save",
+        onPress: () => navigation.goBack(),
+        style: 'destructive'
+      },
+    ]);
+  };
 
   useEffect(() => {
-    Keyboard.addListener('keyboardWillShow', () => {
+    Keyboard.addListener('keyboardWillShow', (k) => {
       setKeyboardFocused(true);
+      setKeyboardHeight(k.endCoordinates.height);
     });
     Keyboard.addListener('keyboardWillHide', () => {
       setKeyboardFocused(false);
@@ -316,6 +363,7 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       body: newText,
       color: color,
       font: font,
+      weight: 'normal',
       align,
       x: 20,
       y: height / 4,
@@ -370,10 +418,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
   const openImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        // mediaTypes: ImagePicker.MediaTypeOptions.Videos,
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: false,
-        // videoMaxDuration: 30
+        allowsMultipleSelection: false
       });
       if (result.canceled) {
         return;
@@ -393,13 +439,6 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
         newHeight = MAX_SIZE;
         newWidth = imageWidth * scaleFactor;
       }
-      // const defaultPosX = scaleFactor === 1 ? 20 : (width - newWidth) / 2;
-      // const defaultPosY = 20;
-
-      const defaultPosX = width / 2;
-      const defaultPosY = (height - 200) / 2;
-
-      const relativeScaleToScreen = (width * 0.7) / newWidth;
 
       const manipResult = await manipulateAsync(
         result.assets[0].uri,
@@ -416,17 +455,38 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
         const i: PageImageType = {
           id: generateUUID(),
           uri: manipResult.uri,
-          x: defaultPosX,
-          y: defaultPosY,
-          z: maxZ,
+          x: 0,
+          y: 0,
+          z: 0,
           rotate: 0,
-          scale: relativeScaleToScreen,
+          scale: 1,
           shape: 'inherit',
           width: w,
           height: h
         };
-        setImages([...images, i]);
-        setMaxZ(z => z + 1);
+        setElements(e => [
+          ...e,
+          { ...i, type: 'image' },
+          {
+            id: generateUUID(),
+            type: 'text',
+            body: '',
+            color: colors.primaryText,
+            font: 'SingleDay',
+            align: 'left',
+            weight: 'normal',
+            x: 0,
+            y: 0,
+            z: 1,
+            rotate: 0,
+            width: 100,
+            height: 30,
+            size: 18,
+            backgroundColor: null,
+            scale: 1
+          }
+        ]
+        );
       });
 
     } catch (e) {
@@ -517,33 +577,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     setBackgroundPickerModalOpen(true);
   };
 
-  const handlePencilButtonPress = () => {
-  };
 
-  const colors = useThemeColor();
 
-  const handleBackPress = () => {
-    if (texts.length === 0 && images.length === 0) {
-      navigation.goBack();
-      return;
-    }
-    Alert.alert('Save Page?', 'If you go back now, your changes will not be saved.', [
-      {
-        text: 'Save Changes',
-        onPress: () => { },
-        style: 'default'
-      },
-      {
-        text: 'Keep Editing',
-        style: 'default'
-      },
-      {
-        text: "Don't Save",
-        onPress: () => navigation.goBack(),
-        style: 'destructive'
-      },
-    ]);
-  };
 
   const handleUpdateText = (t: PageTextType) => {
     const newT = texts.map(text => {
@@ -555,20 +590,6 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     setTexts(newT);
   };
 
-  const handleTextFocus = (id: string) => {
-    const focused = texts.find(t => t.id === id) ?? null;
-    if (!focused) return;
-    setFocusedTextId(focused.id);
-    setColor(focused.color);
-    setFont(focused.font);
-    setNewText(focused.body);
-    setBackgroundTextColor(focused.backgroundColor ?? null);
-    setOpenInput(true);
-  };
-
-  const handleImageFocus = (id: string) => {
-  };
-
   const handleUpdateImage = (i: PageImageType) => {
     setImages(images.map(img => {
       if (img.id === i.id) {
@@ -577,113 +598,6 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
       return img;
     }));
   };
-
-  const bringImageToFront = (imageId: string) => {
-    setImages(imgs => imgs.map(i => {
-      if (i.id === imageId) {
-        return { ...i, z: maxZ };
-      }
-      return i;
-    }));
-    setMaxZ(z => z + 1);
-  };
-
-  const bringTextToFront = (textId: string) => {
-    setTexts(texts => texts.map(t => {
-      if (t.id === textId) {
-        return { ...t, z: maxZ };
-      }
-      return t;
-    }));
-    setMaxZ(z => z + 1);
-  };
-
-  const sendTextToBack = (textId: string) => {
-    setTexts(texts => texts.map(t => {
-      if (t.id === textId) {
-        return { ...t, z: 1 };
-      }
-      return { ...t, z: t.z + 1 };
-    }));
-    setImages(imgs => imgs.map(i => ({ ...i, z: i.z + 1 })));
-  };
-
-  const sendImageToBack = (imageId: string) => {
-    setImages(imgs => imgs.map(i => {
-      if (i.id === imageId) {
-        return { ...i, z: 1 };
-      }
-      return { ...i, z: i.z + 1 };
-    }));
-    setTexts(texts => texts.map(t => ({ ...t, z: t.z + 1 })));
-  };
-
-  const bgAnimColorDragStyle = useAnimatedStyle(() => {
-    const c = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
-    return {
-      width: 20,
-      transform: [{
-        translateX: bgColorOffsetX.value + 10
-      }],
-      borderRadius: 20,
-      height: 20,
-      backgroundColor: c,
-      borderWidth: 1,
-      borderColor: '#444',
-      position: 'absolute',
-    };
-  });
-
-  const bgColorDragGesture = Gesture.Pan()
-    .onStart(() => {
-      bgLastColorOffsetX.value = bgColorOffsetX.value;
-    })
-    .onUpdate(e => {
-      if (e.translationX + bgLastColorOffsetX.value < 0 || e.translationX + bgLastColorOffsetX.value > 200) return;
-      bgColorOffsetX.value = bgLastColorOffsetX.value + e.translationX;
-      // const newColor = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
-      // setBackgroundTextColor(newColor);
-    })
-    .onEnd(e => {
-      const newColor = interpolateColor(bgColorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
-      setBackgroundTextColor(newColor);
-    })
-    .runOnJS(true);
-
-
-
-  const animColorDragStyle = useAnimatedStyle(() => {
-    const c = interpolateColor(colorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
-    return {
-      width: 20,
-      transform: [{
-        translateX: colorOffsetX.value + 10
-      }],
-      borderRadius: 20,
-      height: 20,
-      backgroundColor: c,
-      borderWidth: 1,
-      borderColor: '#444',
-      position: 'absolute',
-    };
-  });
-
-  const colorDragGesture = Gesture.Pan()
-    .onStart(() => {
-      lastColorOffsetX.value = colorOffsetX.value;
-    })
-    .onUpdate(e => {
-      if (e.translationX + lastColorOffsetX.value < 0 || e.translationX + lastColorOffsetX.value > 200) return;
-      colorOffsetX.value = lastColorOffsetX.value + e.translationX;
-      // const newColor = interpolateColor(colorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
-      // setColor(newColor);
-    })
-    .onEnd(e => {
-      const newColor = interpolateColor(colorOffsetX.value, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
-      setColor(newColor);
-    })
-    .runOnJS(true);
-
 
   const handleDeleteImage = (id: string) => {
     setImages(images.filter(i => i.id !== id));
@@ -755,11 +669,8 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
     });
   };
 
-  const [backgroundColorPickerOpen, setBackgroundColorPickerOpen] = useState(false);
-  const colorSize = (width - 30 - (10 * 6)) / 6;
-
   return (
-    <Container backgroundColor='#fff'>
+    <Container backgroundColor={colors.surface1}>
       <BottomSheet
         height={320}
         showBackDrop={false}
@@ -853,217 +764,143 @@ const NewPage = ({ navigation }: ScreenProps<'NewPage'>) => {
         headerLeft={<BackButton style={{ marginLeft: 12 }} onPress={handleBackPress} />}
         headerRight={<DoneButton onPress={handleSave} />}
       />
-      {openInput &&
-        <KeyboardAvoidingView
-          behavior={'height'}
-          style={{
-            flex: 1,
-            position: 'absolute',
-            zIndex: 1000,
-            left: 0,
-            top: 0,
-            right: 0,
-            alignItems: 'flex-start',
-            justifyContent: 'flex-end',
-            bottom: 0
-          }}
-        >
-          <Pressable
-            onPress={handleInputBlur}
-            style={{ position: 'absolute', height: height, top: 0, left: 0, right: 0 }} />
-          <View style={{ width: '100%', paddingTop: 10, backgroundColor: colors.surface1 }}>
-            <TextInput
-              numberOfLines={5}
-              multiline
-              autoFocus
-              scrollEnabled={false}
-              maxLength={200}
-              ref={inputRef}
-              value={newText}
-              onChangeText={setNewText}
-              placeholder='Start typing...'
-              placeholderTextColor={color}
-              style={{
-                paddingHorizontal: 16,
-                backgroundColor: backgroundTextColor ?? 'transparent',
-                minHeight: 30,
-                fontFamily: font,
-                lineHeight: 24,
-                fontSize: 22,
-                textAlign: align,
-                paddingBottom: 4,
-                color: color
-              }}
-              onBlur={handleInputBlur}
-            />
-            {colorPickerOpen && <View style={{
-              paddingHorizontal: 20,
-              height: 40,
-              justifyContent: 'center',
-            }}>
-              <LinearGradient
-                colors={colorArray}
-                start={[0, 0]}
-                end={[1, 1]}
-                style={{ width: 200, height: 12, borderRadius: 20 }}
-              />
-              <GestureDetector gesture={colorDragGesture}>
-                <Animated.View
-                  style={animColorDragStyle}
-                />
-              </GestureDetector>
-            </View>
-            }
-            {bgColorPickerOpen && <View style={{
-              paddingHorizontal: 20,
-              height: 40,
-              justifyContent: 'center',
-            }}>
-              <LinearGradient
-                colors={colorArray}
-                start={[0, 0]}
-                end={[1, 1]}
-                style={{ width: 200, height: 12, borderRadius: 20 }}
-              />
-              <GestureDetector gesture={bgColorDragGesture}>
-                <Animated.View
-                  style={bgAnimColorDragStyle}
-                />
-              </GestureDetector>
-            </View>
-            }
-            <View style={{ height: 40, gap: 10, width: '100%', paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center' }}>
-              <Pressable
-                style={{
-                  width: 30,
-                  height: 30,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 30,
-                }}
-                onPress={() => setColorPickerOpen(o => !o)}
-              >
-                <TextColorIcon size={24} color={color} />
-              </Pressable>
-              <View style={{ width: 1, height: 20, backgroundColor: colors.surface3 }} />
-              <Pressable
-                style={{
-                  width: 24,
-                  height: 24,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderCurve: 'continuous',
-                  borderRadius: 6,
-                  backgroundColor: backgroundTextColor ?? colors.surface3
-                }}
-                onPress={() => {
-                  if (bgColorPickerOpen) {
-                    setBgColorPickerOpen(false);
-                  } else if (backgroundTextColor) {
-                    setBackgroundTextColor(null);
-                  }
-                  else {
-                    bgColorOffsetX.value = 25;
-                    const newColor = interpolateColor(25, [0, 25, 50, 75, 100, 125, 150, 175, 200], colorArray);
-                    setBackgroundTextColor(newColor);
-                    setBgColorPickerOpen(true);
-                  }
-                }}
-              >
-                <BackgroundIcon size={16} color={color} />
-                {/* <TextColorIcon size={24} color={color} /> */}
-              </Pressable>
-              <View style={{ width: 1, height: 20, backgroundColor: colors.surface3 }} />
-              <TextAlignContainer align={align} setAlign={setAlign} />
-              <View style={{ width: 1, height: 20, backgroundColor: colors.surface3 }} />
-              <FontStyleContainer font={font} setFont={setFont} />
-              <View style={{ width: 1, height: 20, backgroundColor: colors.surface3 }} />
-              <Pressable
-                onPress={handleInputBlur}
-                style={{
-                  width: 40,
-                  height: 40,
-                  flexDirection: 'row',
-                  gap: 2,
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                <KeyboardIcon size={24} color={colors.primaryText} />
-                <Ionicons name='arrow-down' size={16} color={colors.primaryText} />
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      }
-      <View style={{ flex: 1, paddingHorizontal: 10, paddingVertical: 10, width: width, backgroundColor: colors.surface1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
         <Pressable
-          onLongPress={handleBackgroundLongPress}
           ref={imageRef}
           collapsable={false}
           style={{
             width: canvasWidth,
             maxWidth: canvasWidth,
-            height: canvasHeight,
-            maxHeight: canvasHeight,
+            flex: 1,
             overflow: 'hidden',
+            paddingTop: 12,
+            justifyContent: 'space-between',
             backgroundColor: backgroundColor
           }}
         >
-          {/* {background && background.type === 'image' ? <Image style={{ position: 'absolute', zIndex: 0, left: 0, top: 0, right: 0, bottom: 0 }} source={{ uri: background.uri }} /> : <SvgBackground bgKey={background?.bgKey} />} */}
-          {backgroundImage && <Image
-            style={{ position: 'absolute', zIndex: 0, left: 0, top: 0, right: 0, bottom: 0 }}
-            resizeMode={'cover'}
-            source={{ uri: backgroundImage }}
-          />
-          }
-          {texts?.map(t => t.id !== focusedTextId && (
-            <MovableText
-              key={t.id}
-              text={t}
-              onChange={handleUpdateText}
-              onDelete={handleDeleteText}
-              onFocus={() => handleTextFocus(t.id)}
-              onBringTextToFront={bringTextToFront}
-              onSendTextToBack={sendTextToBack}
+          <ScrollView
+            // keyboardShouldPersistTaps='handled'
+            contentContainerStyle={{
+              paddingHorizontal: 15,
+              paddingBottom: 20,
+              minHeight: canvasHeight,
+            }}
+          >
+            {backgroundImage && <Image
+              style={{ position: 'absolute', zIndex: 0, left: 0, top: 0, right: 0, bottom: 0 }}
+              resizeMode={'cover'}
+              source={{ uri: backgroundImage }}
             />
-          ))}
-          {images?.map(img => (
-            <MovableImage
-              key={img.id}
-              image={img}
-              onChange={handleUpdateImage}
-              onFocus={handleImageFocus}
-              onDelete={handleDeleteImage}
-              onBringImageToFront={bringImageToFront}
-              onSendImageToBack={sendImageToBack}
-              onCropImage={() => setCropImage({ ...img })}
+            }
+            <TextInput
+              value={title}
+              onChangeText={setTitle}
+              style={{ fontSize: 24, fontWeight: 'bold', color: colors.primaryText, fontFamily: 'SingleDay' }}
+              placeholder='Title'
+              scrollEnabled={false}
+              placeholderTextColor={colors.secondaryText}
+              maxLength={100}
             />
-          ))}
+            {elements.map((e, i) => (
+              e.type === 'text' ?
+                <TextInput
+                  key={e.id}
+                  multiline={true}
+                  scrollEnabled={false}
+                  value={e.body}
+                  onChangeText={(val) => {
+                    const newT: PageElement[] = elements.map(t => {
+                      if (t.id === e.id && t.type === 'text') {
+                        return {
+                          ...t,
+                          body: val
+                        };
+                      }
+                      return t;
+                    });
+                    setElements(newT);
+                  }}
+                  style={{
+                    fontSize: e.size,
+                    fontWeight: e.weight,
+                    fontFamily: e.font,
+                    minHeight: 30,
+                    marginTop: 15,
+                    width: '100%',
+                    color: e.color
+                  }}
+                  placeholder='Start writing...'
+                  placeholderTextColor={colors.secondaryText}
+                />
+                : e.type === 'image' ?
+                  <Image
+                    key={e.id}
+                    style={{
+                      width: width / 2,
+                      borderRadius: 4,
+                      marginTop: 15,
+                      aspectRatio: e.width / e.height,
+                    }}
+                    source={{ uri: e.uri }}
+                  />
+                  : null
+            ))}
+          </ScrollView>
+          <View
+            style={{
+              width: '100%',
+              height: keyboardFocused ? 50 : bottom + 50,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-evenly',
+              paddingBottom: keyboardFocused ? 0 : bottom,
+              paddingHorizontal: 15,
+              backgroundColor: colors.surface3,
+              marginTop: 'auto'
+            }}>
+            {/* <Pressable
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <TemplateIcon size={24} color={colors.primaryText} />
+            </Pressable> */}
+            <Pressable
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+            >
+              {/* <TextIcon size={24} color={colors.primaryText} /> */}
+              <TextStyleIcon size={28} color={colors.primaryText} />
+            </Pressable>
+            <Pressable
+              onPress={openImage}
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ImageIcon size={24} color={colors.primaryText} />
+            </Pressable>
+            <Pressable
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <BackgroundIcon size={24} color={colors.primaryText} />
+            </Pressable>
+            <Pressable
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <StickerIcon size={24} color={colors.primaryText} />
+            </Pressable>
+            {keyboardFocused && <Pressable
+              onPress={() => {
+                setKeyboardFocused(false);
+                Keyboard.dismiss();
+              }}
+              style={{ marginLeft: 'auto', width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+              <ArrowDownIcon size={24} color={colors.primaryText} />
+            </Pressable>
+            }
+          </View>
         </Pressable>
-      </View>
-      {overlaysShown && <View style={{
-        width: '100%',
-        // position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        paddingBottom: bottom,
-        height: BOTTOM_CONTAINER_HEIGHT + bottom,
-        backgroundColor: colors.surface1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-evenly',
-        zIndex: 2
-      }}>
-        {/* <UndoButton hasBackAction={hasBackAction} onPress={handleUndo} /> */}
-        <TextButton onPress={handleTextButtonPress} />
-        <ImagePickerButton onPress={handleImagePickerButtonPress} />
-        <StickerButton onPress={handleStickerButtonPress} />
-        <BackgroundButton onPress={handleBackgroundButtonPress} />
-        {/* <PencilButton /> */}
-      </View>
-      }
-    </Container>
+      </KeyboardAvoidingView>
+    </Container >
   );
 };
 
@@ -2345,6 +2182,6 @@ const UndoButton = (props: UndoProps) => {
   );
 };
 
-export default NewPage;
+export default WrittenPage;
 
 const styles = StyleSheet.create({});
