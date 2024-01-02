@@ -1,6 +1,6 @@
 import { Dimensions, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons, Feather, AntDesign } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ContextMenuOption, Diary, Page, ScreenProps, UseNavigationType } from '../types';
 import { Container, Text, useThemeColor } from '../Theme/Themed';
 import Header from '../Components/Header';
@@ -29,6 +29,20 @@ const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
   const { width, height } = Dimensions.get('window');
   const cellWidth = (width - 40) / 2;
   const colors = useThemeColor();
+
+  // useEffect(() => {
+  //   (async () => {
+  //     const today = new Date().toLocaleDateString();
+  //     console.log("TODAY: ", today);
+  //     const res = await AsyncStorage.getItem('promptedToday');
+  //     if (!res || res !== today) {
+  //       AsyncStorage.setItem('promptedToday', today);
+  //       navigation.navigate('TodaysPageScreen');
+  //     } else {
+  //       AsyncStorage.removeItem('promptedToday');
+  //     }
+  //   })();
+  // }, []);
 
   return (
     <Container>
@@ -165,9 +179,7 @@ const NewPageButton = () => {
       />
       <Animated.View style={animButtonStyle}>
         <Pressable
-          onPress={handleMenuOpen}
-          // onPressIn={() => scale.value = withTiming(0.92, { duration: 100 })}
-          // onPressOut={() => scale.value = withSpring(1, { stiffness: 100 })}
+          onPress={() => navigation.navigate('NewPage')}
           style={{
             width: 60,
             height: 60,

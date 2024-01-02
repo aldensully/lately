@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Dimensions, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,6 +8,10 @@ type Props = {
   headerTitle?: React.ReactNode;
   headerRight?: React.ReactNode;
 };
+
+const { width } = Dimensions.get('window');
+const endWidth = width / 4;
+const centerWidth = width / 2;
 
 const Header = (props: Props) => {
   const { style, headerLeft, headerTitle, headerRight } = props;
@@ -27,8 +31,9 @@ const Header = (props: Props) => {
         alignItems: 'flex-end',
         justifyContent: 'flex-start',
         flexDirection: 'row',
-        flexBasis: 1,
-        flexGrow: 1,
+        // flexBasis: 1,
+        // flexGrow: 1,
+        width: endWidth
       }}>
         {headerLeft}
       </View>
@@ -36,9 +41,10 @@ const Header = (props: Props) => {
         height: '100%',
         alignItems: 'flex-end',
         justifyContent: 'center',
+        width: centerWidth,
         flexDirection: 'row',
         paddingBottom: 6,
-        flexBasis: 3,
+        // flexBasis: 3,
         flexGrow: 1
       }}>
         {headerTitle}
@@ -49,8 +55,9 @@ const Header = (props: Props) => {
         alignItems: 'flex-end',
         justifyContent: 'flex-end',
         flexDirection: 'row',
-        flexBasis: 1,
-        flexGrow: 1
+        // flexBasis: 1,
+        // flexGrow: 1,
+        width: endWidth
       }}>
         {headerRight}
       </View>

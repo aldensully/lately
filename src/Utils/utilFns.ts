@@ -113,10 +113,7 @@ export async function getActiveDiary(user_id: string) {
     }
     const diary = diaries.find(d => d.id == res);
     if (diary == undefined) return null;
-    return {
-      ...diary,
-      pages: diary.pages.reverse()
-    };
+    return diary;
     // const diaries = await AsyncStorage.getItem('diaries');
     // const parsed = JSON.parse(diaries ?? '[]') as Diary[];
     // if (parsed.length == 0) return null;

@@ -3,7 +3,7 @@ import Svg, { SvgProps, Path } from "react-native-svg";
 import { IconProps } from "../../src/types";
 import { View } from "react-native";
 
-const PlusIcon = (props: SvgProps & IconProps) => (
+const StarIcon = (props: SvgProps & IconProps) => (
   <View style={{
     width: props.size,
     height: props.size,
@@ -21,7 +21,7 @@ const PlusIcon = (props: SvgProps & IconProps) => (
       >
         <Path
           fill={props.color}
-          d="M3.429 11.715c0 .493.411.894.894.894h6.498v6.5c0 .481.402.893.894.893a.911.911 0 0 0 .905-.894V12.61h6.488a.902.902 0 0 0 .894-.894.911.911 0 0 0-.894-.904H12.62V4.323a.911.911 0 0 0-.904-.894.903.903 0 0 0-.894.894v6.488H4.323a.911.911 0 0 0-.894.904Z"
+          d="M23.378 9.357a.923.923 0 0 0-.745-.627l-6.775-.984-3.03-6.14c-.312-.63-1.345-.63-1.656 0l-3.03 6.14-6.776.984a.923.923 0 0 0-.511 1.573l4.903 4.78-1.157 6.748a.924.924 0 0 0 1.339.973L12 19.617l6.06 3.186a.923.923 0 0 0 1.338-.973l-1.157-6.748 4.903-4.78a.922.922 0 0 0 .234-.945Z"
         />
       </Svg>
     </View>
@@ -29,4 +29,4 @@ const PlusIcon = (props: SvgProps & IconProps) => (
 );
 
 
-export default PlusIcon;
+export default StarIcon;

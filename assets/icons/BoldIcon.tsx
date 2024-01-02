@@ -3,12 +3,11 @@ import Svg, { SvgProps, Path } from "react-native-svg";
 import { IconProps } from "../../src/types";
 import { View } from "react-native";
 
-const PlusIcon = (props: SvgProps & IconProps) => (
+const BoldIcon = (props: SvgProps & IconProps) => (
   <View style={{
     width: props.size,
     height: props.size,
     justifyContent: 'center',
-    backgroundColor: 'transparent',
     alignItems: 'center'
   }}>
     <View style={{ aspectRatio: 1 }}>
@@ -21,12 +20,11 @@ const PlusIcon = (props: SvgProps & IconProps) => (
       >
         <Path
           fill={props.color}
-          d="M3.429 11.715c0 .493.411.894.894.894h6.498v6.5c0 .481.402.893.894.893a.911.911 0 0 0 .905-.894V12.61h6.488a.902.902 0 0 0 .894-.894.911.911 0 0 0-.894-.904H12.62V4.323a.911.911 0 0 0-.904-.894.903.903 0 0 0-.894.894v6.488H4.323a.911.911 0 0 0-.894.904Z"
+          d="M7.698 19.507h5.233c3.074 0 5.012-1.617 5.012-4.099 0-1.958-1.416-3.374-3.455-3.485v-.08c1.667-.231 2.802-1.487 2.802-3.084 0-2.24-1.717-3.616-4.5-3.616H7.698C6.623 5.143 6 5.776 6 6.88v10.898c0 1.095.623 1.728 1.698 1.728Zm1.617-2.32v-3.988h2.52c1.759 0 2.743.683 2.743 1.968 0 1.316-.944 2.02-2.672 2.02H9.315Zm0-6.078V7.503h2.47c1.407 0 2.24.643 2.24 1.748 0 1.165-.923 1.858-2.49 1.858h-2.22Z"
         />
       </Svg>
     </View>
   </View>
 );
 
-
-export default PlusIcon;
+export default BoldIcon;

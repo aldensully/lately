@@ -44,6 +44,7 @@ import CloseIcon from '../../assets/icons/CloseIcon';
 import PlusCircleIcon from '../../assets/icons/PlusCircleIcon';
 import PlusIcon from '../../assets/icons/PlusIcon';
 import TextStyleIcon from '../../assets/icons/TextStyleIcon';
+import { useNavigation } from '@react-navigation/native';
 
 
 const DoneButton = ({ onPress }: { onPress: () => void; }) => {
@@ -85,7 +86,7 @@ type PageElement = (PageTextType & {
   ref: React.RefObject<TextInput>;
 }) | (PageImageType & { type: 'image'; });
 
-const WrittenPage = ({ navigation }: ScreenProps<'WrittenPage'>) => {
+const EmptyTemplate = () => {
   const { top, bottom } = useSafeAreaInsets();
   const canvasHeight = height - (BOTTOM_CONTAINER_HEIGHT + bottom + top + 45 + 20);
   const colors = useThemeColor();
@@ -95,19 +96,12 @@ const WrittenPage = ({ navigation }: ScreenProps<'WrittenPage'>) => {
   const [newText, setNewText] = useState('');
   const [focusedText, setFocusedText] = useState<PageTextType | null>(null);
   const [cropImage, setCropImage] = useState<PageImageType | null>(null);
-  const [font, setFont] = useState('SingleDay');
-  const [color, setColor] = useState('#000000');
-  const [backgroundTextColor, setBackgroundTextColor] = useState<string | null>(null);
-  const [align, setAlign] = useState<'left' | 'center' | 'right'>('left');
+  const navigation = useNavigation();
   const titleInputRef = useRef<TextInput>(null);
-  const [camPermission, requestPermission] = useCameraPermissions();
   const [mediaPermission] = ImagePicker.useMediaLibraryPermissions();
   const [stickerModalOpen, setStickerModalOpen] = useState(false);
-  const [backgroundColor, setBackgroundColor] = useState(colors.surface1);
+  const [backgroundColor, setBackgroundColor] = useState('#FFFFFF');
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-  const colorOffsetX = useSharedValue(0);
-  const bgColorOffsetX = useSharedValue(0);
-  const [maxZ, setMaxZ] = useState(3);
   const { data: activeDiary, isLoading } = useQuery({ queryKey: ['activeDiary'], queryFn: () => user && getActiveDiary(user.id) });
   const queryClient = useQueryClient();
   const user = defaultStore(state => state.user);
@@ -115,7 +109,6 @@ const WrittenPage = ({ navigation }: ScreenProps<'WrittenPage'>) => {
   const [loading, setLoading] = useState(false);
   const [backgroundColorPickerOpen, setBackgroundColorPickerOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const currentFocusedRef = useRef<string | null>(null);
   const taskBarX = useSharedValue(0);
   const [weather, setWeather] = useState<WeatherTag | null>(null);
   const [location, setLocation] = useState<LocationTag | null>(null);
@@ -511,7 +504,7 @@ const WrittenPage = ({ navigation }: ScreenProps<'WrittenPage'>) => {
         handleImagePickerButtonPress();
       }
       if (buttonIndex === 3) {
-        setBackgroundColor(colors.surface1);
+        setBackgroundColor('#ffffff');
         setBackgroundImage(null);
       }
     });
@@ -594,10 +587,12 @@ const WrittenPage = ({ navigation }: ScreenProps<'WrittenPage'>) => {
 
   const handleImageLongPress = (image: PageElement) => {
     if (image.type !== 'image') return;
-    const isFullSize = image.width === width / 2;
+    const isFullSize = image.width === (width - 30) / 2;
     const options = ['Cancel', 'Crop', 'Remove Background', 'Delete'];
     if (isFullSize) options.splice(2, 0, 'Half Size');
     else options.splice(2, 0, 'Full Size');
+
+    console.log(image.width);
 
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -1875,6 +1870,6 @@ const UndoButton = (props: UndoProps) => {
   );
 };
 
-export default WrittenPage;
+export default EmptyTemplate;
 
 const styles = StyleSheet.create({});

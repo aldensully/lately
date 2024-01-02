@@ -18,7 +18,9 @@ export type NavigationScreens = {
   SignUpOptionsScreen: undefined; //choose apple or google sign up. its a modal
   EditProfileScreen: undefined; //choose apple or google sign up. its a modal
   CreateFirstDiaryScreen: { newUser: User; imageUri?: string | undefined; };
+  TemplateSelectionScreen: undefined;
   Page: { page: Page, diary: Diary; };
+  TodaysPageScreen: undefined;
 };
 
 //screen props
@@ -39,6 +41,11 @@ export type JournalTheme = {
   textColor: string;
   font: string;
 };
+
+export type PageElement = (PageTextType & {
+  type: 'text';
+  ref: React.RefObject<TextInput>;
+}) | (PageImageType & { type: 'image'; });
 
 export type ContextMenuOption = {
   name: string;
@@ -73,6 +80,7 @@ export type PageImageType = {
   width: number;
   height: number;
   scale: number;
+  image_type: 'stack' | 'group' | 'default';
 };
 
 export type PageTextType = {
@@ -89,6 +97,7 @@ export type PageTextType = {
   rotate: number;
   color: string;
   weight: 'bold' | 'normal';
+  placeholder: string | null;
   backgroundColor: string | null;
   font: string;
 };

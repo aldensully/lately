@@ -54,7 +54,7 @@ const textSizes = {
     // fontWeight: '600'
   },
   h3: {
-    fontSize: 20,
+    fontSize: 21,
     // lineHeight: 20,
     // fontWeight: '600'
   }
@@ -66,7 +66,7 @@ const fontFamilies = {
   // p: 'Nunito-SemiBold',
   // h1: 'Nunito-Black',
   // h2: 'Nunito-ExtraBold',
-  // h3: 'Nunito-ExtraBold'
+  // h3: 'Nunito-ExtraBold',
   xs: 'SingleDay',
   sm: 'SingleDay',
   p: 'SingleDay',

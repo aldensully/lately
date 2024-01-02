@@ -3,7 +3,7 @@ import Svg, { SvgProps, Path } from "react-native-svg";
 import { IconProps } from "../../src/types";
 import { View } from "react-native";
 
-const PlusIcon = (props: SvgProps & IconProps) => (
+const SearchIcon = (props: SvgProps & IconProps) => (
   <View style={{
     width: props.size,
     height: props.size,
@@ -21,7 +21,7 @@ const PlusIcon = (props: SvgProps & IconProps) => (
       >
         <Path
           fill={props.color}
-          d="M3.429 11.715c0 .493.411.894.894.894h6.498v6.5c0 .481.402.893.894.893a.911.911 0 0 0 .905-.894V12.61h6.488a.902.902 0 0 0 .894-.894.911.911 0 0 0-.894-.904H12.62V4.323a.911.911 0 0 0-.904-.894.903.903 0 0 0-.894.894v6.488H4.323a.911.911 0 0 0-.894.904Z"
+          d="M2.727 10.294c0 4.42 3.596 8.015 8.016 8.015a7.946 7.946 0 0 0 4.66-1.506l4.943 4.952c.23.23.532.341.854.341.683 0 1.155-.512 1.155-1.185 0-.321-.12-.613-.332-.824l-4.912-4.942a7.921 7.921 0 0 0 1.648-4.851c0-4.42-3.596-8.016-8.016-8.016s-8.016 3.596-8.016 8.016Zm1.718 0a6.302 6.302 0 0 1 6.298-6.298 6.302 6.302 0 0 1 6.298 6.298 6.302 6.302 0 0 1-6.298 6.298 6.302 6.302 0 0 1-6.298-6.298Z"
         />
       </Svg>
     </View>
@@ -29,4 +29,4 @@ const PlusIcon = (props: SvgProps & IconProps) => (
 );
 
 
-export default PlusIcon;
+export default SearchIcon;
