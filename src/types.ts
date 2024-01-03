@@ -80,7 +80,6 @@ export type PageImageType = {
   width: number;
   height: number;
   scale: number;
-  image_type: 'stack' | 'group' | 'default';
 };
 
 export type PageTextType = {

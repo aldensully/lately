@@ -51,7 +51,7 @@ const Navigation = () => {
           headerShadowVisible: false,
           headerLeft: renderCloseButton,
         }} name="SignUpOptionsScreen" component={SignUpOptionsScreen} />
-        <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false, gestureEnabled: false }} name="NewPage" component={NewPage} />
+        <Stack.Screen options={{ animation: 'fade', headerShown: false, gestureEnabled: false }} name="NewPage" component={NewPage} />
         <Stack.Screen options={{ animation: 'none', headerShown: false, gestureEnabled: false }} name="TodaysPageScreen" component={TodaysPageScreen} />
         <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false, gestureEnabled: false }} name="WrittenPage" component={WrittenPage} />
         <Stack.Screen options={{ animation: 'slide_from_right', headerShown: false, gestureEnabled: false }} name="CreateFirstDiaryScreen" component={CreateFirstDiaryScreen} />

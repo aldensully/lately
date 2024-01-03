@@ -33,7 +33,7 @@ const CloseButton = (props: Props) => {
         alignItems: 'center',
         justifyContent: 'center'
       }, style]}>
-      <CloseIcon size={28} color={color} />
+      <CloseIcon size={24} color={color} />
     </Pressable>
   );
 };

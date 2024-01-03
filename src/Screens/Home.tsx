@@ -103,7 +103,7 @@ const Home = ({ navigation, route }: ScreenProps<'Home'>) => {
           }
         </View>
       </ScrollView>
-      <NewPageButton />
+      {/* <NewPageButton /> */}
     </Container>
   );
 };

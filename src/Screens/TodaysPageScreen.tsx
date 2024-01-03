@@ -115,32 +115,29 @@ const TodaysPageScreen = ({ navigation }: ScreenProps<'TodaysPageScreen'>) => {
         }
       />
       }
-      {showButton ? <SimpleTemplate />
-        :
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
-          <Animated.View style={animContainerStyle}>
-            <Animated.View style={animDateStyle}>
-              <Text type='h2' color={colors.secondaryText}>{datestring}</Text>
-            </Animated.View>
-            <Animated.View style={animPromptStyle}>
-              <Text style={{ textAlign: 'center' }} type='h1'>{prompt}</Text>
-            </Animated.View>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
+        <Animated.View style={animContainerStyle}>
+          <Animated.View style={animDateStyle}>
+            <Text type='h2' color={colors.secondaryText}>{datestring}</Text>
           </Animated.View>
-          <Animated.View style={animButtonStyle}>
-            {/* <Button
+          <Animated.View style={animPromptStyle}>
+            <Text style={{ textAlign: 'center' }} type='h1'>{prompt}</Text>
+          </Animated.View>
+        </Animated.View>
+        <Animated.View style={animButtonStyle}>
+          {/* <Button
               title='Start'
               type='primary'
               onPress={handleStart}
             /> */}
-            <Pressable
-              onPress={() => navigation.navigate('NewPage')}
-              style={{ gap: 5, height: 50, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
-              <Text type='h2' color={colors.primary}>Tap To Start</Text>
-              {/* <ArrowRightIcon size={20} color={colors.primary} /> */}
-            </Pressable>
-          </Animated.View>
-        </View>
-      }
+          <Pressable
+            onPress={() => navigation.navigate('NewPage')}
+            style={{ gap: 5, height: 50, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
+            <Text type='h2' color={colors.primary}>Tap To Start</Text>
+            {/* <ArrowRightIcon size={20} color={colors.primary} /> */}
+          </Pressable>
+        </Animated.View>
+      </View>
     </Container >
   );
 };
